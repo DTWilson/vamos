@@ -15,5 +15,200 @@ knitr::opts_chunk$set(
 ```
 
 ```{r setup}
-library(vamos)
+#library(vamos)
 ```
+
+## Introduction
+
+This report will compile the theory, evaluation and application of methods for the **vamos** (**va**lue-based testing of **m**ultiple **o**utcome**s**) project. The associated package (which contains this report as a vignette) can be found [here](https://github.com/DTWilson/vamos).
+
+## Problem
+
+Consider a clinical trial comparing two treatments with respect to two normally distributed outcomes with standard deviations $\sigma_i, i=1,2$. Denote the two corresponding treatment effects (i.e., the differences between expected outcomes in the control and experimental treatment groups) and their estimates by $\theta_i$ and $\hat{\theta}_i, i = 1,2$, respectively. Our goal is to develop a procedure for choosing a per-arm sample size $n$ and a critical region $\mathcal{C}$ for a hypothesis test, where we will conclude in favour of the experimental treatment if 
+
+$$
+(\hat{z}_1 , \hat{z}_2 ) \in \mathcal{C},
+$$
+where
+
+$$
+\hat{z}_i = \frac{\hat{\theta}_i}{\sqrt{2\sigma_i^2/n}}.
+$$
+
+
+## Multiple and co-primary endpoints
+
+Two extreme approaches to our problem are based on combining univariate testing procedures for the two outcomes. That is, we choose critical values $c_i, i=1,2$ and then conclude in favour of the experiment treatment when either
+
+- $A = \hat{z}_1 > c_1$ **or** $\hat{z}_2 > c_2$ (the case of multiple primary endpoints), or
+- $B = \hat{z}_1 > c_1$ **and** $\hat{z}_2 > c_2$ (the case of co-primary endpoints).
+
+In both cases we choose the design variables $(n, c_1, c_2)$ which minimise $n$ subject to some operating characteristic constraints. For multiple endpoints these are
+
+$$
+\begin{align}
+\max_{z_1, z_2} & ~ Pr(A ~|~ z_1 \leq 0 \cap z_2 \leq 0) \\
+\max_{z_1, z_2} & ~ Pr(A^c  ~|~ z_1 \geq z_1^a \cup z_2 \geq z_2^a),
+\end{align}
+$$
+
+corresponding to conventional type I and II error rates defined with respect to univariate null (0) and alternative ($z_i^a$) hypotheses. 
+
+For the co-primary case we have instead
+
+$$
+\begin{align}
+\max_{z_1, z_2} & ~ Pr(B ~|~ z_1 \leq 0 \cup z_2 \leq 0) \\
+\max_{z_1, z_2} & ~ Pr(B^c  ~|~ z_1 \geq z_1^a \cap z_2 \geq z_2^a),
+\end{align}
+$$
+
+again corresponding to type I and II error rates. The hypotheses and critical regions for multiple (i) and co-primary (ii) approaches look like this:
+
+```{r, echo = FALSE}
+library(ggplot2)
+library(patchwork)
+
+df <- expand.grid(z_1 = c(-5, 7),
+                  z_2 = c(-5, 7))
+
+p1 <- ggplot(df, aes(z_1, z_2)) + geom_point(alpha = 0) +
+  coord_fixed() + 
+  # null
+  geom_segment(aes(x = -5, y = 0, xend = 0, yend = 0)) +
+  geom_segment(aes(x = 0, y = -5, xend = 0, yend = 0)) + 
+  
+  # alt
+  geom_segment(aes(x = -5, y = 3, xend = 3, yend = 3)) +
+  geom_segment(aes(x = 3, y = -5, xend = 3, yend = 3)) +
+  
+  # crit
+  geom_segment(aes(x = -5, y = 2, xend = 2, yend = 2), linetype = 2) +
+  geom_segment(aes(x = 2, y = -5, xend = 2, yend = 2), linetype = 2) +
+  
+  annotate("text", x = -2, y = -2, label = expression(H[0])) +
+  annotate("text", x = 5, y = 5, label = expression(H[a])) +
+  
+  xlab(expression(z[1])) + ylab(expression(z[2])) +
+  theme_minimal()
+
+p2 <- ggplot(df, aes(z_1, z_2)) + geom_point(alpha = 0) +
+  coord_fixed() + 
+  # null
+  geom_segment(aes(x = 7, y = 0, xend = 0, yend = 0)) +
+  geom_segment(aes(x = 0, y = 7, xend = 0, yend = 0)) + 
+  
+  # alt
+  geom_segment(aes(x = 7, y = 3, xend = 3, yend = 3)) +
+  geom_segment(aes(x = 3, y = 7, xend = 3, yend = 3)) +
+  
+  # crit
+  geom_segment(aes(x = 7, y = 2, xend = 2, yend = 2), linetype = 2) +
+  geom_segment(aes(x = 2, y = 7, xend = 2, yend = 2), linetype = 2) +
+  
+  annotate("text", x = -2, y = -2, label = expression(H[0])) +
+  annotate("text", x = 5, y = 5, label = expression(H[a])) +
+  
+  xlab(expression(z[1])) + ylab(expression(z[2])) +
+  theme_minimal()  
+```
+
+```{r, echo = FALSE, fig.height = 5, fig.width = 7, fig.align = "center"}
+p1 + p2 + plot_annotation(tag_levels = 'i')
+```
+
+# Value-based hypotheses
+
+For both the multiple and co-primary approaches, the composite hypotheses imply extreme preference relations between the two outcomes. For example, in the co-primary case both $(z_1, z_2) = (0, 0)$ and $(z_1, z_2) = (5, 0)$ are considered to be in the null hypothesis, meaning that we wish to constrain the probability of concluding in favour of the experimental treatment to the same level at both points. Whenever there is some kind of trade-off between the two outcomes, we might expect the latter point to be preferred to the former and the permitted probability of a positive result relaxed correspondingly. 
+
+To allow for these kind of preferences we can change the way we set up our hypotheses. We propose to construct these by first choosing lower and upper limits beyond which trade-offs are not considered. To begin, we take these limits to be the same for both $z_1$ and $z_2$ (which may well make sense since these are standardised effects). We set the lower limit to be 0 (without loss of generality?) and denote the upper limit by $c$. Then if $z_1 < 0$ we are in the null, regardless of the value of $z_2$ (and vice versa); while if $z_1 > c$ then our position (in the null, alternative, or in between) depends only on $z_2$.
+
+Within this box, we allow for trade-offs. We model the boundary of the null hypothesis using 
+
+$$
+z_1 + z_2 + a z_1 z_2 = c.
+$$
+
+The choice of positive $a$ will dictate the nature of the trade-off. With $a = 0$ we will have a linear trade-off; as $a$ increases we will approach the sharp hypothesis illustrated in the co-primary case above. The null is then defined by 
+
+$$
+H_0: z_2 < \frac{c - z_1}{1 + az_1} \cup z_1 < 0 \cup z_2 < 0.
+$$
+
+For the alternative we use a similar boundary but with our coordinates shifted by $s$:
+
+$$
+(z_1 - s) + (z_2 - s) + a (z_1 - s) (z_2 - s) = c.
+$$
+
+To find $s$, note that we will require this equation to be satisfied at the point $(c, b)$ where $b$ is the alternative hypothesis at the margins when trade-offs don't exist, when the marginal test will have type I and II error rates of $\alpha$ and $\beta$:
+
+$$
+b = \Phi^{-1}(1 - \alpha) + \Phi^{-1}(1 - \beta).
+$$
+Substituting these values in for $z_1$ and $z_2$ and solving for $s$ gives
+
+$$
+s = \frac{(2 + ac + ab) - \sqrt{(-2 - ac - ab)^2 - 4 a (b + abc)}}{2a}.
+$$
+
+The alternative hypothesis is then defined by
+
+$$
+H_a: z_2 > \frac{c - (z_1 - s)}{1 + a(z_1 - s)} + s \cap z_1 > b \cap z_2 > b.
+$$
+
+For example, let $c = 7$ and consider $a = 0.5, 1, 5, 100$. These produce the following hypotheses:
+
+```{r}
+hyp_plot <- function(a, c, alpha = 0.05, beta = 0.2) {
+  
+  # Start by finding the required dif at the margins, corresponding to the
+  # mean of the marginal sampling dist under the alternative. Note we are using
+  # z statistics, so they will have sd = 1.
+  alpha <- 0.05; beta <- 0.2
+  b <- qnorm(1 - alpha) + qnorm(1 - beta)
+  
+  # Now translate this into the required shift parameter, s
+  aa <- a; bb <- (-2 - a*c - b*a); cc <- b + b*a*c
+  s <- (-bb - sqrt(bb^2 - 4*aa*cc))/(2*aa)
+  
+  # At each point in the grid, denote if it lies in the null (0) or alternative (2)
+  # hypotheses.
+  df$h <- ifelse(df$y < (c - df$x)/(1 + a*df$x) | df$x < 0 | df$y < 0 , 0,
+                 ifelse(df$y > (c - (df$x - s))/(1 + a*(df$x - s)) + s & (df$y > b & df$x > b), 2,
+                        1))
+  
+  # Plot the hypotheses - adding a line at x=b which should border the alternative
+  # region.
+  ggplot(df, aes(x, y, colour=as.factor(h))) + geom_point() + coord_fixed() +
+    scale_color_discrete(name = "Hypothesis") +
+    xlab(expression(z[1])) + ylab(expression(z[2]))
+}
+
+p1 <- hyp_plot(0.2, 7); p2 <- hyp_plot(1, 7); p3 <- hyp_plot(5, 7); p4 <- hyp_plot(100, 7)
+
+(p1 + p2) / (p3 + p4)
+```
+
+A value-based testing procedure then decides in favour of the experimental treatment when
+
+$$
+C = \hat{z}_2 > \frac{c - (\hat{z}_1 - s_{crit})}{1 + a(\hat{z}_1 - s_{crit})} + s_{crit} \text{ and } \hat{z}_1 > b_{crit} \text{ and } \hat{z}_2 > b_{crit},
+$$
+
+where 
+
+$$
+b_{crit} = \frac{s_{crit}}{1 + a (c - s_{crit})} + s_{crit},
+$$
+for some choice of critical value $s_{crit}$. Our type I and II error rates are then
+
+$$
+\begin{align}
+\max_{z_1, z_2} & ~ Pr\left(C ~|~ z_2 < \frac{c - z_1}{1 + az_1} \cup z_1 < 0 \cup z_2 < 0 \right) \\
+\max_{z_1, z_2} & ~ Pr\left(C^c  ~|~ z_2 > \frac{c - (z_1 - s)}{1 + a(z_1 - s)} + s \cap z_1 > b \cap z_2 > b \right).
+\end{align}
+$$
+
+
