@@ -1,5 +1,5 @@
 ---
-title: "research_report"
+title: "vamos - reseacrh report"
 output: rmarkdown::html_vignette
 vignette: >
   %\VignetteIndexEntry{research_report}
@@ -16,6 +16,8 @@ knitr::opts_chunk$set(
 
 ```{r setup}
 #library(vamos)
+library(ggplot2)
+library(patchwork)
 ```
 
 ## Introduction
@@ -117,6 +119,12 @@ p2 <- ggplot(df, aes(z_1, z_2)) + geom_point(alpha = 0) +
 p1 + p2 + plot_annotation(tag_levels = 'i')
 ```
 
+## Implementation
+
+```{r}
+
+```
+
 # Value-based hypotheses
 
 For both the multiple and co-primary approaches, the composite hypotheses imply extreme preference relations between the two outcomes. For example, in the co-primary case both $(z_1, z_2) = (0, 0)$ and $(z_1, z_2) = (5, 0)$ are considered to be in the null hypothesis, meaning that we wish to constrain the probability of concluding in favour of the experimental treatment to the same level at both points. Whenever there is some kind of trade-off between the two outcomes, we might expect the latter point to be preferred to the former and the permitted probability of a positive result relaxed correspondingly. 
@@ -163,6 +171,9 @@ For example, let $c = 7$ and consider $a = 0.5, 1, 5, 100$. These produce the fo
 ```{r}
 hyp_plot <- function(a, c, alpha = 0.05, beta = 0.2) {
   
+  df <- expand.grid(x = seq(-5,15,0.3),
+                 y = seq(-5,15,0.3))
+  
   # Start by finding the required dif at the margins, corresponding to the
   # mean of the marginal sampling dist under the alternative. Note we are using
   # z statistics, so they will have sd = 1.
@@ -202,6 +213,7 @@ where
 $$
 b_{crit} = \frac{s_{crit}}{1 + a (c - s_{crit})} + s_{crit},
 $$
+
 for some choice of critical value $s_{crit}$. Our type I and II error rates are then
 
 $$
@@ -210,5 +222,153 @@ $$
 \max_{z_1, z_2} & ~ Pr\left(C^c  ~|~ z_2 > \frac{c - (z_1 - s)}{1 + a(z_1 - s)} + s \cap z_1 > b \cap z_2 > b \right).
 \end{align}
 $$
+```{r}
+value_ocs <- function(crit, a, c, sigma) {
+  
+  # Find the distance from the null of 0 to the critical region
+  # at the margins
+  b_crit <- crit/(1 + a*(c - crit)) + crit
+  
+  int_cond_z_1 <- function(z_1, mean, cov) {
+    # For a given z_1, calculate the conditional probability of landing in the
+    # critical region based on the conditional distribution z_2 | z_1, when
+    # the joint dist has a given mean and covariance matrix
+  
+    # Get mean m and sd s of the conditional distribution
+    cor <- sigma[1,2]/(sqrt(sigma[1,1]*sigma[2,2]))
+    m <- mean[2] + sqrt(sigma[2,2]/sigma[1,1])*cor*(z_1 - mean[1])
+    s <- sqrt((1 - cor^2)*sigma[2,2])
+    
+    # Find the lower limit for the integration over z_2
+    low <- ifelse(z_1 > c, b_crit, 
+                  ifelse(z_1 > b_crit, (c - (z_1- crit))/(1 + a*(z_1 - crit)) + crit,
+                  Inf))
+    
+    # Calculate the conditional prob and weight by the marginal 
+    # prob of z_1
+    (1 - pnorm(low, m, s))*dnorm(z_1, mean[1], sqrt(sigma[1,1]))
+  }
+  
+  # Get covariance matrix of z statistics based on the outcome covariance sigma
+  cov_z <- sigma[1,2]/(2*sqrt(sigma[1,1]*sigma[2,2]))
+  sigma_z <- matrix(c(1, cov_z, cov_z, 1),
+                      ncol = 2)
+  
+  # Search over the null hypothesis boundary to find the maximum type I error
+  # rate. 
+  # Start search at the point where z_1 = z_2
+  z_1_min <- (sqrt(a*c + 1) - 1)/a
+  z_1 <- seq(z_1_min, 10, 0.1)
+  # Find corresponding z_2 on the value-based boundary
+  z_2 <- (c - z_1)/(1 + a*z_1)
+  # Correct for when we are in the no-trade-off region
+  z_2 <- pmax(z_2, 0)
+  
+  # Run a a simple exhaustive search
+  tI <- NULL
+  for(i in 1:length(z_1)){
+    tI <- c(tI, integrate(int_cond_z_1, -Inf, Inf, mean = c(z_1[i], z_2[i]), cov = sigma_z)$value)
+  }
+  
+  # Find distance of alternative from null at the margins
+  b <- qnorm(1 - alpha) + qnorm(1 - beta)
+  # Get the shift parameter corresponding to the alternative hypothesis
+  aa <- a; bb <- (-2 - a*c - b*a); cc <- b + b*a*c
+  sh <- (-bb - sqrt(bb^2 - 4*aa*cc))/(2*aa)
+  
+  # Start search at the point where z_1 = z_2
+  z_1_min <- (sqrt((2 - 2*a*sh)^2 - 4*a*(a*sh^2 - 2*sh - c)) - (2 - 2*a*sh))/(2*a)
+  z_1 <- seq(z_1_min, 10, 0.1)
+  # Find corresponding z_2 on the value-based boundary
+  z_2 <- (c - (z_1 - sh))/(1 + a*(z_1 - sh)) + sh
+  # Correct for when we are in the no-trade-off region
+  z_2 <- pmax(z_2, b)
+  
+  # Run a a simple exhaustive search
+  tII <- NULL
+  for(i in 1:length(z_1)){
+    tII <- c(tII, 1 - integrate(int_cond_z_1, -Inf, Inf, mean = c(z_1[i], z_2[i]), cov = sigma_z)$value)
+  }
+  
+  max(tII)
+  
+  c(max(tI), max(tII))
+}
 
+sigma <- matrix(c(1, 0.8, 0.8, 1), ncol = 2)
+
+value_ocs(1, a = 1, c = 7, sigma = sigma)
+
+value_ocs_cp <- function(crit, a, c, sigma) {
+  # Get OCs under the value hypothesis but when using co-primary critical
+  # region.
+  
+  # Get covariance matrix of z statistics based on the outcome covariance sigma
+  cov_z <- sigma[1,2]/(2*sqrt(sigma[1,1]*sigma[2,2]))
+  sigma_z <- matrix(c(1, cov_z, cov_z, 1),
+                      ncol = 2)
+  
+  # Search over the null hypothesis boundary to find the maximum type I error
+  # rate. 
+  # Start search at the point where z_1 = z_2
+  z_1_min <- (sqrt(a*c + 1) - 1)/a
+  z_1 <- seq(z_1_min, 10, 0.1)
+  # Find corresponding z_2 on the value-based boundary
+  z_2 <- (c - z_1)/(1 + a*z_1)
+  # Correct for when we are in the no-trade-off region
+  z_2 <- pmax(z_2, 0)
+  
+  # Run a a simple exhaustive search
+  tI <- NULL
+  for(i in 1:length(z_1)){
+    tI <- c(tI, pmvnorm(lower = c(crit, crit), upper = c(Inf, Inf),
+                        mean = c(z_1[i], z_2[i]), sigma = sigma_z))
+  }
+  
+   # Find distance of alternative from null at the margins
+  b <- qnorm(1 - alpha) + qnorm(1 - beta)
+  # Get the shift parameter corresponding to the alternative hypothesis
+  aa <- a; bb <- (-2 - a*c - b*a); cc <- b + b*a*c
+  sh <- (-bb - sqrt(bb^2 - 4*aa*cc))/(2*aa)
+  
+  # Start search at the point where z_1 = z_2
+  z_1_min <- (sqrt((2 - 2*a*sh)^2 - 4*a*(a*sh^2 - 2*sh - c)) - (2 - 2*a*sh))/(2*a)
+  z_1 <- seq(z_1_min, 10, 0.1)
+  # Find corresponding z_2 on the value-based boundary
+  z_2 <- (c - (z_1 - sh))/(1 + a*(z_1 - sh)) + sh
+  # Correct for when we are in the no-trade-off region
+  z_2 <- pmax(z_2, b)
+  
+  # Run a a simple exhaustive search
+  tII <- NULL
+  for(i in 1:length(z_1)){
+    tII <- c(tII, 1 - pmvnorm(lower = c(crit, crit), upper = c(Inf, Inf),
+                        mean = c(z_1[i], z_2[i]), sigma = sigma_z))
+  }
+  
+  c(max(tI), max(tII))
+}
+```
+
+
+```{r}
+a <- 1
+c <- 7
+sigma <- matrix(c(1, 0.008, 0.008, 1), ncol = 2)
+
+crits1 <- seq(-2, 4, 0.1)
+r <- NULL
+for(i in crits1) {
+  r <- rbind(r, value_ocs(i, a, c, sigma))
+}
+
+crits1 <- seq(-1, 5, 0.1)
+r2 <- NULL
+for(i in crits1) {
+  r2 <- rbind(r2, value_ocs_cp(i, a, c, sigma))
+}
+
+plot(r)
+points(r2, col = "red")
+```
 
