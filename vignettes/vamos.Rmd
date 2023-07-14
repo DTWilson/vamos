@@ -245,6 +245,9 @@ $$
 \end{align}
 $$
 
+Note that we are assuming a large sample setting such that the covariance matrix of the patient outcomes can be estimated with sufficient precision to let us plug the estimates in and then find the smallest $s_{crit}$ which satisfies the type I error constraint, ensuring that we can always control type I error. As usual, the power of the trial will rely on an accurate prior estimate of the covariance matrix.
+
+
 ```{r}
 int_cond_z_1 <- function(z_1, mean, cor_z, a, c, b_crit, crit) {
   # For a given z_1, calculate the conditional probability of landing in the
@@ -324,12 +327,6 @@ value_ocs <- function(crit, a, c, sigma) {
   return(c(max(tI), max(tII)))
 }
 
-alpha <- 0.05; beta <- 0.2
-
-sigma <- matrix(c(1, 0.8, 0.8, 1), ncol = 2)
-
-value_ocs(1, a = 1, c = 7, sigma = sigma)
-
 value_ocs_cp <- function(crit, a, c, sigma) {
   # Get OCs under the value hypothesis but when using co-primary critical
   # region.
@@ -383,9 +380,13 @@ value_ocs_cp <- function(crit, a, c, sigma) {
 ```{r}
 library(mvtnorm)
 
-a <- 5
+alpha <- 0.05; beta <- 0.17
+n <- 2*(qnorm(1 - alpha) - qnorm(beta))^2/(0.3^2)
+n
+
+a <- 1
 c <- 7
-sigma <- matrix(c(1, 0.8, 0.8, 1), ncol = 2)
+sigma <- matrix(c(1, -0.8, -0.8, 1), ncol = 2)
 
 crits1 <- seq(-2, 4, 0.1)
 r <- NULL
@@ -401,4 +402,8 @@ for(i in crits1) {
 
 plot(r)
 points(r2, col = "red")
+
+r[r[,1] <= 0.05, ][1,]
+r2[r2[,1] <= 0.05, ][1,]
+r[r[,1] <= 0.05, ][1,] - r2[r2[,1] <= 0.05, ][1,]
 ```
