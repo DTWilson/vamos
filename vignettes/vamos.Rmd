@@ -247,136 +247,6 @@ $$
 
 Note that we are assuming a large sample setting such that the covariance matrix of the patient outcomes can be estimated with sufficient precision to let us plug the estimates in and then find the smallest $s_{crit}$ which satisfies the type I error constraint, ensuring that we can always control type I error. As usual, the power of the trial will rely on an accurate prior estimate of the covariance matrix.
 
-
-```{r}
-int_cond_z_1 <- function(z_1, mean, cor_z, a, c, b_crit, crit) {
-  # For a given z_1, calculate the conditional probability of landing in the
-  # critical region based on the conditional distribution z_2 | z_1, when
-  # the joint dist of (z_1, z_2) has a given mean and correlation
-  
-  # Get mean m and sd s of the conditional distribution
-  m <- mean[2] + cor_z*(z_1 - mean[1])
-  s <- sqrt(1 - cor_z^2)
-  
-  # Find the lower limit for the integration over z_2
-  low <- ifelse(z_1 > c, b_crit, 
-                ifelse(z_1 > b_crit, (c - (z_1- crit))/(1 + a*(z_1 - crit)) + crit,
-                       Inf))
-  
-  # Calculate the conditional prob and weight by the marginal 
-  # prob of z_1
-  (1 - pnorm(low, m, s))*dnorm(z_1, mean[1], 1)
-}
-
-value_tI <- function(crit, a, c, cor_z, b_crit) {
-  
-  # Search over the null hypothesis boundary to find the maximum type I error
-  # rate. 
-  # Start search at the point where z_1 = z_2
-  z_1_min <- (sqrt(a*c + 1) - 1)/a
-  z_1 <- seq(z_1_min, 10, 0.1)
-  # Find corresponding z_2 on the value-based boundary
-  z_2 <- (c - z_1)/(1 + a*z_1)
-  # Correct for when we are in the no-trade-off region
-  z_2 <- pmax(z_2, 0)
-  
-  # Run a a simple exhaustive search
-  tI <- NULL
-  for(i in 1:length(z_1)){
-    tI <- c(tI, integrate(int_cond_z_1, -Inf, Inf, 
-                          mean = c(z_1[i], z_2[i]), 
-                          cor_z=cor_z, a=a, c=c, b_crit=b_crit, crit=crit)$value)
-  }
-  
-  return(max(tI))
-}
-
-value_ocs <- function(crit, a, c, sigma) {
-  
-  # Find the distance from the null of 0 to the critical region
-  # at the margins
-  b_crit <- crit/(1 + a*(c - crit)) + crit
-  
-  # Get correlation of z statistics based on the outcome covariance sigma
-  cor_z <- sigma[1,2]/(sqrt(sigma[1,1]*sigma[2,2]))
-  
-  tI <- value_tI(crit, a, c, cor_z, b_crit)
-  
-  # Find distance of alternative from null at the margins
-  b <- qnorm(1 - alpha) + qnorm(1 - beta)
-  # Get the shift parameter corresponding to the alternative hypothesis
-  aa <- a; bb <- (-2 - a*c - b*a); cc <- b + b*a*c
-  sh <- (-bb - sqrt(bb^2 - 4*aa*cc))/(2*aa)
-  
-  # Start search at the point where z_1 = z_2
-  z_1_min <- (sqrt((2 - 2*a*sh)^2 - 4*a*(a*sh^2 - 2*sh - c)) - (2 - 2*a*sh))/(2*a)
-  z_1 <- seq(z_1_min, 10, 0.1)
-  # Find corresponding z_2 on the value-based boundary
-  z_2 <- (c - (z_1 - sh))/(1 + a*(z_1 - sh)) + sh
-  # Correct for when we are in the no-trade-off region
-  z_2 <- pmax(z_2, b)
-  
-  # Run a a simple exhaustive search
-  tII <- NULL
-  for(i in 1:length(z_1)){
-    tII <- c(tII, 1 - integrate(int_cond_z_1, -Inf, Inf, 
-                                mean = c(z_1[i], z_2[i]), 
-                                cor_z=cor_z, a=a, c=c, b_crit=b_crit, crit=crit)$value)
-  }
-  
-  return(c(max(tI), max(tII)))
-}
-
-value_ocs_cp <- function(crit, a, c, sigma) {
-  # Get OCs under the value hypothesis but when using co-primary critical
-  # region.
-  
-  # Get correlation of z statistics based on the outcome covariance sigma
-  cor_z <- sigma[1,2]/(sqrt(sigma[1,1]*sigma[2,2]))
-  
-  # Search over the null hypothesis boundary to find the maximum type I error
-  # rate. 
-  # Start search at the point where z_1 = z_2
-  z_1_min <- (sqrt(a*c + 1) - 1)/a
-  z_1 <- seq(z_1_min, 10, 0.1)
-  # Find corresponding z_2 on the value-based boundary
-  z_2 <- (c - z_1)/(1 + a*z_1)
-  # Correct for when we are in the no-trade-off region
-  z_2 <- pmax(z_2, 0)
-  
-  # Run a a simple exhaustive search
-  tI <- NULL
-  for(i in 1:length(z_1)){
-    tI <- c(tI, pmvnorm(lower = c(crit, crit), upper = c(Inf, Inf),
-                        mean = c(z_1[i], z_2[i]), sigma = matrix(c(1, cor_z, cor_z, 1), ncol = 2)))
-  }
-  
-   # Find distance of alternative from null at the margins
-  b <- qnorm(1 - alpha) + qnorm(1 - beta)
-  # Get the shift parameter corresponding to the alternative hypothesis
-  aa <- a; bb <- (-2 - a*c - b*a); cc <- b + b*a*c
-  sh <- (-bb - sqrt(bb^2 - 4*aa*cc))/(2*aa)
-  
-  # Start search at the point where z_1 = z_2
-  z_1_min <- (sqrt((2 - 2*a*sh)^2 - 4*a*(a*sh^2 - 2*sh - c)) - (2 - 2*a*sh))/(2*a)
-  z_1 <- seq(z_1_min, 10, 0.1)
-  # Find corresponding z_2 on the value-based boundary
-  z_2 <- (c - (z_1 - sh))/(1 + a*(z_1 - sh)) + sh
-  # Correct for when we are in the no-trade-off region
-  z_2 <- pmax(z_2, b)
-  
-  # Run a a simple exhaustive search
-  tII <- NULL
-  for(i in 1:length(z_1)){
-    tII <- c(tII, 1 - pmvnorm(lower = c(crit, crit), upper = c(Inf, Inf),
-                        mean = c(z_1[i], z_2[i]), sigma = matrix(c(1, cor_z, cor_z, 1), ncol = 2)))
-  }
-  
-  return(c(max(tI), max(tII)))
-}
-```
-
-
 ```{r}
 library(mvtnorm)
 
@@ -386,19 +256,24 @@ n
 
 a <- 1
 c <- 7
-sigma <- matrix(c(1, -0.8, -0.8, 1), ncol = 2)
+sigma <- matrix(c(1, 0.3, 0.3, 1), ncol = 2)
+cor_z <- sigma[1,2]
+variance <- sigma[1,1]
+alpha_nom <- 0.05
+target <- 0.3
 
-crits1 <- seq(-2, 4, 0.1)
+ns <- seq(50, 500, 50)
 r <- NULL
-for(i in crits1) {
-  r <- rbind(r, value_ocs(i, a, c, sigma))
+for(n in ns){
+  r <- rbind(r, ocs_value_cp(n, target, cor_z, alpha_nom, variance, a, c))
 }
 
-crits1 <- seq(-1, 5, 0.1)
 r2 <- NULL
-for(i in crits1) {
-  r2 <- rbind(r2, value_ocs_cp(i, a, c, sigma))
+for(n in ns){
+  r2 <- rbind(r2, ocs_value_cp_wrong(n, target, cor_z, alpha_nom, variance, a, c))
 }
+
+r2[,2] - r[,2]
 
 plot(r)
 points(r2, col = "red")
@@ -406,4 +281,5 @@ points(r2, col = "red")
 r[r[,1] <= 0.05, ][1,]
 r2[r2[,1] <= 0.05, ][1,]
 r[r[,1] <= 0.05, ][1,] - r2[r2[,1] <= 0.05, ][1,]
+
 ```
