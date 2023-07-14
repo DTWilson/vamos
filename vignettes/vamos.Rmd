@@ -37,7 +37,29 @@ $$
 \hat{z}_i = \frac{\hat{\theta}_i}{\sqrt{2\sigma_i^2/n}}.
 $$
 
+The distribution of $(\hat{z}_1, \hat{z}_2)$ will be bivariate normal with variances of 1 and a covariance of
 
+$$
+\begin{aligned}
+cov(\hat{z}_1, \hat{z}_2) &= cov\left(\frac{\hat{\theta}_1}{\sqrt{2\sigma_1^2/n}}, \frac{\hat{\theta}_2}{\sqrt{2\sigma_2^2/n}}\right) \\
+& = \frac{n}{2 \sigma_1 \sigma_2} cov \left(\hat{\theta_1}, \hat{\theta_2} \right) \\
+&= \frac{n}{2 \sigma_1 \sigma_2} \frac{2n}{n^2} \tau\\
+&= \frac{\tau}{\sigma_1 \sigma_2}
+\end{aligned}
+$$
+where $\tau$ denotes the covariance between an individual's two outcomes. Since the variances are equal to 1, this covariance is also the correlation.
+
+The conditional distribution of $\hat{z_2}$ given $\hat{z_1}$ is normal with mean
+
+$$
+E[\hat{z}_2] + \frac{\tau}{\sigma_1 \sigma_2}(\hat{z}_1 - E[\hat{z}_1])
+$$
+and variance
+
+$$
+1 - \left( \frac{\tau}{\sigma_1 \sigma_2}\right)^2.
+$$
+  
 ## Multiple and co-primary endpoints
 
 Two extreme approaches to our problem are based on combining univariate testing procedures for the two outcomes. That is, we choose critical values $c_i, i=1,2$ and then conclude in favour of the experiment treatment when either
@@ -222,37 +244,28 @@ $$
 \max_{z_1, z_2} & ~ Pr\left(C^c  ~|~ z_2 > \frac{c - (z_1 - s)}{1 + a(z_1 - s)} + s \cap z_1 > b \cap z_2 > b \right).
 \end{align}
 $$
+
 ```{r}
-value_ocs <- function(crit, a, c, sigma) {
+int_cond_z_1 <- function(z_1, mean, cor_z, a, c, b_crit, crit) {
+  # For a given z_1, calculate the conditional probability of landing in the
+  # critical region based on the conditional distribution z_2 | z_1, when
+  # the joint dist of (z_1, z_2) has a given mean and correlation
   
-  # Find the distance from the null of 0 to the critical region
-  # at the margins
-  b_crit <- crit/(1 + a*(c - crit)) + crit
+  # Get mean m and sd s of the conditional distribution
+  m <- mean[2] + cor_z*(z_1 - mean[1])
+  s <- sqrt(1 - cor_z^2)
   
-  int_cond_z_1 <- function(z_1, mean, cov) {
-    # For a given z_1, calculate the conditional probability of landing in the
-    # critical region based on the conditional distribution z_2 | z_1, when
-    # the joint dist has a given mean and covariance matrix
+  # Find the lower limit for the integration over z_2
+  low <- ifelse(z_1 > c, b_crit, 
+                ifelse(z_1 > b_crit, (c - (z_1- crit))/(1 + a*(z_1 - crit)) + crit,
+                       Inf))
   
-    # Get mean m and sd s of the conditional distribution
-    cor <- sigma[1,2]/(sqrt(sigma[1,1]*sigma[2,2]))
-    m <- mean[2] + sqrt(sigma[2,2]/sigma[1,1])*cor*(z_1 - mean[1])
-    s <- sqrt((1 - cor^2)*sigma[2,2])
-    
-    # Find the lower limit for the integration over z_2
-    low <- ifelse(z_1 > c, b_crit, 
-                  ifelse(z_1 > b_crit, (c - (z_1- crit))/(1 + a*(z_1 - crit)) + crit,
-                  Inf))
-    
-    # Calculate the conditional prob and weight by the marginal 
-    # prob of z_1
-    (1 - pnorm(low, m, s))*dnorm(z_1, mean[1], sqrt(sigma[1,1]))
-  }
-  
-  # Get covariance matrix of z statistics based on the outcome covariance sigma
-  cov_z <- sigma[1,2]/(2*sqrt(sigma[1,1]*sigma[2,2]))
-  sigma_z <- matrix(c(1, cov_z, cov_z, 1),
-                      ncol = 2)
+  # Calculate the conditional prob and weight by the marginal 
+  # prob of z_1
+  (1 - pnorm(low, m, s))*dnorm(z_1, mean[1], 1)
+}
+
+value_tI <- function(crit, a, c, cor_z, b_crit) {
   
   # Search over the null hypothesis boundary to find the maximum type I error
   # rate. 
@@ -267,8 +280,24 @@ value_ocs <- function(crit, a, c, sigma) {
   # Run a a simple exhaustive search
   tI <- NULL
   for(i in 1:length(z_1)){
-    tI <- c(tI, integrate(int_cond_z_1, -Inf, Inf, mean = c(z_1[i], z_2[i]), cov = sigma_z)$value)
+    tI <- c(tI, integrate(int_cond_z_1, -Inf, Inf, 
+                          mean = c(z_1[i], z_2[i]), 
+                          cor_z=cor_z, a=a, c=c, b_crit=b_crit, crit=crit)$value)
   }
+  
+  return(max(tI))
+}
+
+value_ocs <- function(crit, a, c, sigma) {
+  
+  # Find the distance from the null of 0 to the critical region
+  # at the margins
+  b_crit <- crit/(1 + a*(c - crit)) + crit
+  
+  # Get correlation of z statistics based on the outcome covariance sigma
+  cor_z <- sigma[1,2]/(sqrt(sigma[1,1]*sigma[2,2]))
+  
+  tI <- value_tI(crit, a, c, cor_z, b_crit)
   
   # Find distance of alternative from null at the margins
   b <- qnorm(1 - alpha) + qnorm(1 - beta)
@@ -287,13 +316,15 @@ value_ocs <- function(crit, a, c, sigma) {
   # Run a a simple exhaustive search
   tII <- NULL
   for(i in 1:length(z_1)){
-    tII <- c(tII, 1 - integrate(int_cond_z_1, -Inf, Inf, mean = c(z_1[i], z_2[i]), cov = sigma_z)$value)
+    tII <- c(tII, 1 - integrate(int_cond_z_1, -Inf, Inf, 
+                                mean = c(z_1[i], z_2[i]), 
+                                cor_z=cor_z, a=a, c=c, b_crit=b_crit, crit=crit)$value)
   }
   
-  max(tII)
-  
-  c(max(tI), max(tII))
+  return(c(max(tI), max(tII)))
 }
+
+alpha <- 0.05; beta <- 0.2
 
 sigma <- matrix(c(1, 0.8, 0.8, 1), ncol = 2)
 
@@ -303,10 +334,8 @@ value_ocs_cp <- function(crit, a, c, sigma) {
   # Get OCs under the value hypothesis but when using co-primary critical
   # region.
   
-  # Get covariance matrix of z statistics based on the outcome covariance sigma
-  cov_z <- sigma[1,2]/(2*sqrt(sigma[1,1]*sigma[2,2]))
-  sigma_z <- matrix(c(1, cov_z, cov_z, 1),
-                      ncol = 2)
+  # Get correlation of z statistics based on the outcome covariance sigma
+  cor_z <- sigma[1,2]/(sqrt(sigma[1,1]*sigma[2,2]))
   
   # Search over the null hypothesis boundary to find the maximum type I error
   # rate. 
@@ -322,7 +351,7 @@ value_ocs_cp <- function(crit, a, c, sigma) {
   tI <- NULL
   for(i in 1:length(z_1)){
     tI <- c(tI, pmvnorm(lower = c(crit, crit), upper = c(Inf, Inf),
-                        mean = c(z_1[i], z_2[i]), sigma = sigma_z))
+                        mean = c(z_1[i], z_2[i]), sigma = matrix(c(1, cor_z, cor_z, 1), ncol = 2)))
   }
   
    # Find distance of alternative from null at the margins
@@ -343,18 +372,20 @@ value_ocs_cp <- function(crit, a, c, sigma) {
   tII <- NULL
   for(i in 1:length(z_1)){
     tII <- c(tII, 1 - pmvnorm(lower = c(crit, crit), upper = c(Inf, Inf),
-                        mean = c(z_1[i], z_2[i]), sigma = sigma_z))
+                        mean = c(z_1[i], z_2[i]), sigma = matrix(c(1, cor_z, cor_z, 1), ncol = 2)))
   }
   
-  c(max(tI), max(tII))
+  return(c(max(tI), max(tII)))
 }
 ```
 
 
 ```{r}
-a <- 1
+library(mvtnorm)
+
+a <- 5
 c <- 7
-sigma <- matrix(c(1, 0.008, 0.008, 1), ncol = 2)
+sigma <- matrix(c(1, 0.8, 0.8, 1), ncol = 2)
 
 crits1 <- seq(-2, 4, 0.1)
 r <- NULL
@@ -371,4 +402,3 @@ for(i in crits1) {
 plot(r)
 points(r2, col = "red")
 ```
-
