@@ -151,65 +151,75 @@ p1 + p2 + plot_annotation(tag_levels = 'i')
 
 For both the multiple and co-primary approaches, the composite hypotheses imply extreme preference relations between the two outcomes. For example, in the co-primary case both $(z_1, z_2) = (0, 0)$ and $(z_1, z_2) = (5, 0)$ are considered to be in the null hypothesis, meaning that we wish to constrain the probability of concluding in favour of the experimental treatment to the same level at both points. Whenever there is some kind of trade-off between the two outcomes, we might expect the latter point to be preferred to the former and the permitted probability of a positive result relaxed correspondingly. 
 
-To allow for these kind of preferences we can change the way we set up our hypotheses. We propose to construct these by first choosing lower and upper limits beyond which trade-offs are not considered. To begin, we take these limits to be the same for both $z_1$ and $z_2$ (which may well make sense since these are standardised effects). We set the lower limit to be 0 (without loss of generality?) and denote the upper limit by $c$. Then if $z_1 < 0$ we are in the null, regardless of the value of $z_2$ (and vice versa); while if $z_1 > c$ then our position (in the null, alternative, or in between) depends only on $z_2$.
+To allow for these kind of preferences we can change the way we set up our hypotheses. We propose to construct these by first choosing lower and upper limits beyond which trade-offs are not considered, denoted $c_1$ and $c_2$. We then define a value contour which lies on the point $(0, c_2)$ and then use this to construct our null and alternative hypotheses by shrinking or expanding this contour with respect to the point $(c_1, c_2)$.
 
-Within this box, we allow for trade-offs. We model the boundary of the null hypothesis using 
-
-$$
-z_1 + z_2 + a z_1 z_2 = c.
-$$
-
-The choice of positive $a$ will dictate the nature of the trade-off. With $a = 0$ we will have a linear trade-off; as $a$ increases we will approach the sharp hypothesis illustrated in the co-primary case above. The null is then defined by 
+The types of contours we consider are of the form
 
 $$
-H_0: z_2 < \frac{c - z_1}{1 + az_1} \cup z_1 < 0 \cup z_2 < 0.
+z_1 + wz_2 + a z_1 w z_2 = C.
 $$
 
-For the alternative we use a similar boundary but with our coordinates shifted by $s$:
+The parameter $W$ allows for a relative preference for one endpoint over the other, which the parameter $a$ dictates the nature of the trade-off. With $a = 0$ we will have a linear trade-off; as $a$ increases we will approach the sharp hypothesis illustrated in the co-primary case above. for the canonical contour we note that the value will be equal at points $(0, c_2)$ and $(c_1, n_2)$ (for some choice of $n_2$) and so
 
 $$
-(z_1 - s) + (z_2 - s) + a (z_1 - s) (z_2 - s) = c.
+\begin{align}
+w c_2 &=  c_1 + w n_2 + a c_1 w n_2 \\
+w &= \frac{c_1}{c_2 - n_2 - a c_1 n_2}.
+\end{align}
 $$
 
-To find $s$, note that we will require this equation to be satisfied at the point $(c, b)$ where $b$ is the alternative hypothesis at the margins when trade-offs don't exist, when the marginal test will have type I and II error rates of $\alpha$ and $\beta$:
+This contour is then described by
 
 $$
-b = \Phi^{-1}(1 - \alpha) + \Phi^{-1}(1 - \beta).
-$$
-Substituting these values in for $z_1$ and $z_2$ and solving for $s$ gives
-
-$$
-s = \frac{(2 + ac + ab) - \sqrt{(-2 - ac - ab)^2 - 4 a (b + abc)}}{2a}.
+z_2 = \frac{w c_2 - z_1} {w + a w z_1}.
 $$
 
-The alternative hypothesis is then defined by
+To transform this into a hypothesis, we specific some value $b$ which denotes the shift from $z_1 = 0$ to $z_1 = b$. This gives a shift parameter 
 
 $$
-H_a: z_2 > \frac{c - (z_1 - s)}{1 + a(z_1 - s)} + s \cap z_1 > b \cap z_2 > b.
+s = \frac{c_1 - b}{b}
 $$
 
-For example, let $c = 7$ and consider $a = 0.5, 1, 5, 100$. These produce the following hypotheses:
+such that we transform our variables from $z_i'$ to 
+
+$$
+z_i = c_i - \frac{c_i - z_i'}{s}.
+$$
+
+Thus, within the trade-off region the hypothesis boundary is given by
+
+$$
+c_2 = \frac{c_2 - z_2}{s} = \frac{wc_2 - (c_1 - [c_1 - z_1]/s)}{w + a w (c_1 - [c_1 - z_1]/s)},
+$$
+
+while the boundaries become
+
+$$
+c_1 - \frac{c_1 - z_1}/s < 0 ~\text{ and }~ c_2 - (c_2 - z_2)/s < n_2.
+$$
+
+For example, let $c_1 = c_2 = 7$ with $n_y = 0$, $b_{null} = 0$ and $b_{alt} = 2.49$. Consider $a = 0.5, 1, 5, 100$. These produce the following hypotheses:
 
 ```{r}
-hyp_plot <- function(a, c, alpha = 0.05, beta = 0.2) {
+hyp_plot <- function(a, c_x, c_y = c_x, n_y = 0, b_null = 0, b_alt = 2.486475) {
   
+  # Grid of points for plotting
   df <- expand.grid(x = seq(-5,15,0.3),
                  y = seq(-5,15,0.3))
   
-  # Start by finding the required dif at the margins, corresponding to the
-  # mean of the marginal sampling dist under the alternative. Note we are using
-  # z statistics, so they will have sd = 1.
-  b <- qnorm(1 - alpha) + qnorm(1 - beta)
+  # Get weight for value function
+  w <- (c_x)/(c_y - n_y - a*c_x*n_y)
   
-  # Now translate this into the required shift parameter, s
-  aa <- a; bb <- (-2 - a*c - b*a); cc <- b + b*a*c
-  s <- (-bb - sqrt(bb^2 - 4*aa*cc))/(2*aa)
+  
+  # Get the required shift parameters to transform the basic hypothesis (set up
+  # assuming n_x = 0) to null and alternatives
+  s_n <- (c_x - b_null)/c_x
+  s_a <- (c_x - b_alt)/c_x
   
   # At each point in the grid, denote if it lies in the null (0) or alternative (2)
   # hypotheses.
-  df$h <- ifelse(df$y < (c - df$x)/(1 + a*df$x) | df$x < 0 | df$y < 0 , 0,
-                 ifelse(df$y > (c - (df$x - s))/(1 + a*(df$x - s)) + s & (df$y > b & df$x > b), 2,
-                        1))
+  df$h <- ifelse(c_y - (c_y - df$y)/s_n < (w*c_y - (c_x - (c_x - df$x)/s_n))/(w + w*a*(c_x - (c_x - df$x)/s_n)) | c_x - (c_x - df$x)/s_n < 0 | c_y - (c_y - df$y)/s_n < n_y, 0, 
+                 ifelse(c_y - (c_y - df$y)/s_a > (w*c_y - (c_x - (c_x - df$x)/s_a))/(w + w*a*(c_x - (c_x - df$x)/s_a)) & c_x - (c_x - df$x)/s_a > 0 & c_y - (c_y - df$y)/s_a > n_y, 2, 1))
   
   # Plot the hypotheses - adding a line at x=b which should border the alternative
   # region.
@@ -281,42 +291,4 @@ r[r[,1] <= 0.05, ][1,]
 r2[r2[,1] <= 0.05, ][1,]
 r[r[,1] <= 0.05, ][1,] - r2[r2[,1] <= 0.05, ][1,]
 
-```
-
-## Generalising hypotheses
-
-In the above we made some simplifying assumptions about the shape of our hypotheses, in particular a common null of zero, a common alternative, and common boundaries of the trade-off zone. We want to relax all of these so we can deal with problems like having a non-inferiority outcome considered to be more valuable (or at least, more influential on value) than a superiority outcome (even after transforming to standardised effect sizes).
-
-```{r}
-hyp_plot <- function(a, c_x, c_y, n_y, s) {
-  
-  df <- expand.grid(x = seq(-5,15,0.3),
-                 y = seq(-5,15,0.3))
-  
-  w <- (c_x)/(c_y - n_y - a*c_x*n_y)
-  
-  # At each point in the grid, denote if it lies in the null (0) or alternative (2)
-  # hypotheses.
-  df$h <- ifelse(c_y - (c_y - df$y)/s < (w*c_y - (c_x - (c_x - df$x)/s))/(w + w*a*(c_x - (c_x - df$x)/s)) | c_x - (c_x - df$x)/s < 0 | c_y - (c_y - df$y)/s < n_y, 0, 1)
-  
-  # Plot the hypotheses - adding a line at x=b which should border the alternative
-  # region.
-  ggplot(df, aes(x, y, colour=as.factor(h))) + geom_point() + coord_fixed() +
-    scale_color_discrete(name = "Hypothesis") +
-    xlab(expression(z[1])) + ylab(expression(z[2]))
-}
-
-hyp_plot(1, 5, 9, -4, 1)
-```
-
-```{r}
-c_x <- 10
-n_x <- 2
-s <- 0.5
-
-xp <- (c_x - s*(c_x - n_x)):c_x
-
-c_x - ((c_x - xp)/(s*(c_x - n_x)))*(c_x - n_x)
-
-c_x - (c_x - xp)/s
 ```
