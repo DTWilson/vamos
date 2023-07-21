@@ -199,7 +199,6 @@ hyp_plot <- function(a, c, alpha = 0.05, beta = 0.2) {
   # Start by finding the required dif at the margins, corresponding to the
   # mean of the marginal sampling dist under the alternative. Note we are using
   # z statistics, so they will have sd = 1.
-  alpha <- 0.05; beta <- 0.2
   b <- qnorm(1 - alpha) + qnorm(1 - beta)
   
   # Now translate this into the required shift parameter, s
@@ -282,4 +281,42 @@ r[r[,1] <= 0.05, ][1,]
 r2[r2[,1] <= 0.05, ][1,]
 r[r[,1] <= 0.05, ][1,] - r2[r2[,1] <= 0.05, ][1,]
 
+```
+
+## Generalising hypotheses
+
+In the above we made some simplifying assumptions about the shape of our hypotheses, in particular a common null of zero, a common alternative, and common boundaries of the trade-off zone. We want to relax all of these so we can deal with problems like having a non-inferiority outcome considered to be more valuable (or at least, more influential on value) than a superiority outcome (even after transforming to standardised effect sizes).
+
+```{r}
+hyp_plot <- function(a, c_x, c_y, n_y, s) {
+  
+  df <- expand.grid(x = seq(-5,15,0.3),
+                 y = seq(-5,15,0.3))
+  
+  w <- (c_x)/(c_y - n_y - a*c_x*n_y)
+  
+  # At each point in the grid, denote if it lies in the null (0) or alternative (2)
+  # hypotheses.
+  df$h <- ifelse(c_y - (c_y - df$y)/s < (w*c_y - (c_x - (c_x - df$x)/s))/(w + w*a*(c_x - (c_x - df$x)/s)) | c_x - (c_x - df$x)/s < 0 | c_y - (c_y - df$y)/s < n_y, 0, 1)
+  
+  # Plot the hypotheses - adding a line at x=b which should border the alternative
+  # region.
+  ggplot(df, aes(x, y, colour=as.factor(h))) + geom_point() + coord_fixed() +
+    scale_color_discrete(name = "Hypothesis") +
+    xlab(expression(z[1])) + ylab(expression(z[2]))
+}
+
+hyp_plot(1, 5, 9, -4, 1)
+```
+
+```{r}
+c_x <- 10
+n_x <- 2
+s <- 0.5
+
+xp <- (c_x - s*(c_x - n_x)):c_x
+
+c_x - ((c_x - xp)/(s*(c_x - n_x)))*(c_x - n_x)
+
+c_x - (c_x - xp)/s
 ```
