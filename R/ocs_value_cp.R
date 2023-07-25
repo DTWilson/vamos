@@ -13,13 +13,16 @@ ocs_value_cp <- function(n, null, alternative, cor_z, alpha_nom, variance, a, c_
   df <- search_points(a, c_x, c_y, n_y, b_alt)
 
   # Run a a simple exhaustive search
+  rule_master <- gaussHermiteData(100)
   tII <- NULL
   for(i in 1:nrow(df)){
-    tII <- c(tII, 1 - integrate(int_cond_z_1_cp, -Inf, Inf,
-                          mean = as.numeric(df[i,]),
-                          cor_z=cor_z, a=a, c_x=c_x, c_y=c_y, crit=crit)$value)
+    rule <- rule_master
+    rule$x <- rule$x*sqrt(2)*1 + as.numeric(df[i,1])
+
+    tII <- c(tII, 1 - ghQuad(f = int_cond_z_1_cp, rule = rule,
+                       mean = as.numeric(df[i,]),
+                       cor_z=cor_z, a=a, c_x=c_x, c_y=c_y, crit=crit)/sqrt(pi))
   }
-  max(tII)
 
   return(c(tI, max(tII)))
 }
@@ -42,13 +45,16 @@ value_cp_obj <- function(crit, cor_z, alpha_nom, a, c_x, c_y, n_y, b_null) {
   df <- search_points(a, c_x, c_y, n_y, b_null)
 
   # Run a a simple exhaustive search
+  rule_master <- gaussHermiteData(100)
   tI <- NULL
   for(i in 1:nrow(df)){
-    tI <- c(tI, integrate(int_cond_z_1_cp, -Inf, Inf,
-                          mean = as.numeric(df[i,]),
-                          cor_z=cor_z, a=a, c_x=c_x, c_y=c_y, crit=crit)$value)
+    rule <- rule_master
+    rule$x <- rule$x*sqrt(2)*1 + as.numeric(df[i,1])
+
+    tI <- c(tI, ghQuad(f = int_cond_z_1_cp, rule = rule,
+                       mean = as.numeric(df[i,]),
+                       cor_z=cor_z, a=a, c_x=c_x, c_y=c_y, crit=crit)/sqrt(pi))
   }
-  max(tI)
 
   # Return the penalised objective to be minimised
   return((max(tI)  - alpha_nom)^2)
@@ -75,7 +81,7 @@ int_cond_z_1_cp <- function(z_1, mean, cor_z, a, c_x, c_y, crit) {
 
   # Calculate the conditional prob and weight by the marginal
   # prob of z_1
-  (1 - pnorm(low, m, s))*dnorm(z_1, mean[1], 1)
+  (1 - pnorm(low, m, s))#*dnorm(z_1, mean[1], 1)
 }
 
 ocs_value_cp_wrong <- function(n, null, alternative, cor_z, alpha_nom, variance, a, c_x, c_y, n_y) {
