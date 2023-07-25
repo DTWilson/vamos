@@ -151,7 +151,7 @@ p1 + p2 + plot_annotation(tag_levels = 'i')
 
 For both the multiple and co-primary approaches, the composite hypotheses imply extreme preference relations between the two outcomes. For example, in the co-primary case both $(z_1, z_2) = (0, 0)$ and $(z_1, z_2) = (5, 0)$ are considered to be in the null hypothesis, meaning that we wish to constrain the probability of concluding in favour of the experimental treatment to the same level at both points. Whenever there is some kind of trade-off between the two outcomes, we might expect the latter point to be preferred to the former and the permitted probability of a positive result relaxed correspondingly. 
 
-To allow for these kind of preferences we can change the way we set up our hypotheses. We propose to construct these by first choosing lower and upper limits beyond which trade-offs are not considered, denoted $c_1$ and $c_2$. We then define a value contour which lies on the point $(0, c_2)$ and then use this to construct our null and alternative hypotheses by shrinking or expanding this contour with respect to the point $(c_1, c_2)$.
+To allow for these kind of preferences we can change the way we set up our hypotheses. We propose to construct these by first choosing lower and upper limits beyond which trade-offs are not considered, denoted $c_1$ and $c_2$. We then define a value contour which goes through the point $(0, c_2)$  use this to construct our null and alternative hypotheses by shrinking or expanding this contour with respect to the point $(c_1, c_2)$.
 
 The types of contours we consider are of the form
 
@@ -159,7 +159,7 @@ $$
 z_1 + wz_2 + a z_1 w z_2 = C.
 $$
 
-The parameter $W$ allows for a relative preference for one endpoint over the other, which the parameter $a$ dictates the nature of the trade-off. With $a = 0$ we will have a linear trade-off; as $a$ increases we will approach the sharp hypothesis illustrated in the co-primary case above. for the canonical contour we note that the value will be equal at points $(0, c_2)$ and $(c_1, n_2)$ (for some choice of $n_2$) and so
+The parameter $W$ allows for a relative preference for one endpoint over the other, which the parameter $a$ dictates the nature of the trade-off. With $a = 0$ we will have a linear trade-off; as $a$ increases we will approach the sharp hypothesis illustrated in the co-primary case above. For the canonical contour we note that the value will be equal at points $(0, c_2)$ and $(c_1, n_2)$ (for some choice of $n_2$) and so
 
 $$
 \begin{align}
@@ -180,22 +180,22 @@ $$
 s = \frac{c_1 - b}{b}
 $$
 
-such that we transform our variables from $z_i'$ to 
+such that we transform our variables from $z_i$ to 
 
 $$
-z_i = c_i - \frac{c_i - z_i'}{s}.
+z_i' = c_i - \frac{c_i - z_i}{s}.
 $$
 
 Thus, within the trade-off region the hypothesis boundary is given by
 
 $$
-c_2 = \frac{c_2 - z_2}{s} = \frac{wc_2 - (c_1 - [c_1 - z_1]/s)}{w + a w (c_1 - [c_1 - z_1]/s)},
+c_2 - \frac{c_2 - z_2}{s} = \frac{wc_2 - (c_1 - [c_1 - z_1]/s)}{w + a w (c_1 - [c_1 - z_1]/s)},
 $$
 
 while the boundaries become
 
 $$
-c_1 - \frac{c_1 - z_1}/s < 0 ~\text{ and }~ c_2 - (c_2 - z_2)/s < n_2.
+c_1 - \frac{c_1 - z_1}{s} < 0 ~\text{ and }~ c_2 - \frac{c_2 - z_2}{s} < 0 < n_2.
 $$
 
 For example, let $c_1 = c_2 = 7$ with $n_y = 0$, $b_{null} = 0$ and $b_{alt} = 2.49$. Consider $a = 0.5, 1, 5, 100$. These produce the following hypotheses:
@@ -210,28 +210,47 @@ hyp_plot <- function(a, c_x, c_y = c_x, n_y = 0, b_null = 0, b_alt = 2.486475) {
   # Get weight for value function
   w <- (c_x)/(c_y - n_y - a*c_x*n_y)
   
-  
   # Get the required shift parameters to transform the basic hypothesis (set up
   # assuming n_x = 0) to null and alternatives
   s_n <- (c_x - b_null)/c_x
   s_a <- (c_x - b_alt)/c_x
   
-  # At each point in the grid, denote if it lies in the null (0) or alternative (2)
-  # hypotheses.
-  df$h <- ifelse(c_y - (c_y - df$y)/s_n < (w*c_y - (c_x - (c_x - df$x)/s_n))/(w + w*a*(c_x - (c_x - df$x)/s_n)) | c_x - (c_x - df$x)/s_n < 0 | c_y - (c_y - df$y)/s_n < n_y, 0, 
-                 ifelse(c_y - (c_y - df$y)/s_a > (w*c_y - (c_x - (c_x - df$x)/s_a))/(w + w*a*(c_x - (c_x - df$x)/s_a)) & c_x - (c_x - df$x)/s_a > 0 & c_y - (c_y - df$y)/s_a > n_y, 2, 1))
+  # Null hypothesis
+  x_n <- seq(b_null, c_x, length.out = 100)
+  y_n <- c_y - s_n*(c_y - (w*c_y - (c_x - (c_x - x_n)/s_n))/(w + w*a*(c_x - (c_x - x_n)/s_n)))
   
-  # Plot the hypotheses - adding a line at x=b which should border the alternative
-  # region.
-  ggplot(df, aes(x, y, colour=as.factor(h))) + geom_point() + coord_fixed() +
-    scale_color_discrete(name = "Hypothesis") +
-    xlab(expression(z[1])) + ylab(expression(z[2]))
+  # Alternative hypothesis
+  x_a <- seq(b_alt, c_x, length.out = 100)
+  y_a <- c_y - s_a*(c_y - (w*c_y - (c_x - (c_x - x_a)/s_a))/(w + w*a*(c_x - (c_x - x_a)/s_a)))
+  
+  df <- data.frame(x = c(x_n, x_a),
+                   y = c(y_n, y_a),
+                   h = rep(c("null", "alt"), each = 100))
+  
+  ggplot(df, aes(x, y, colour = h)) + geom_line() +
+    xlim(c(-5, 15)) + ylim(c(-5, 15)) +
+    geom_segment(aes(x = b_null, xend = b_null, y =  15, yend = c_y, colour = "null")) +
+    geom_segment(aes(x = c_x, xend = 15, y =  n_y, yend = n_y, colour = "null")) +
+    geom_segment(aes(x = b_alt, xend = b_alt, y =  15, yend = c_y, colour = "alt")) +
+    geom_segment(aes(x = c_x, xend = 15, y =  y_a[length(y_a)], yend = y_a[length(y_a)], colour = "alt")) +
+    scale_color_manual(name = "Hypothesis", breaks = c("null", "alt"), 
+                       values = c(2,4), labels = c("N", "A")) +
+    xlab(expression(z[1])) + ylab(expression(z[2])) +
+    coord_fixed() +
+    theme_minimal()
 }
 
 p1 <- hyp_plot(0.2, 7); p2 <- hyp_plot(1, 7); p3 <- hyp_plot(5, 7); p4 <- hyp_plot(100, 7)
 
-(p1 + p2) / (p3 + p4)
+(p1 + p2) / (p3 + p4) + plot_layout(guides = "collect")
 ```
+
+Given we are working on the standardised effect scale, the above assumptions implying a symmetry between the two outcomes may well be reasonable. But we can adjust the relative weighting and hypotheses to specify other more general problems, e.g. when we have a superiority and a non-inferiority outcome with the former considered more important than the latter:
+
+```{r}
+hyp_plot(a = 1, c_x = 6, c_y = 9, n_y = -2, b_alt = 2)
+```
+
 
 A value-based testing procedure then decides in favour of the experimental treatment when
 
