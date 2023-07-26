@@ -5,6 +5,10 @@ ocs_value_cp <- function(n, null, alternative, variance, cor_z, alpha_nom, a, c_
   b_null <- null/sqrt(2*variance/n)
   b_alt <- alternative/sqrt(2*variance/n)
 
+  if(b_alt > c_x | b_alt > c_y){
+    stop("Alternative hypothesis is beyond the trade-off region.")
+  }
+
   crit <- opt_crit_value_cp(cor_z, alpha_nom, a, c_x, c_y, n_y, b_null, b_alt)
 
   tI <- sqrt(value_cp_obj(crit, cor_z, alpha_nom, a, c_x, c_y, n_y, b_null)) + alpha_nom
@@ -33,7 +37,7 @@ ocs_value_cp <- function(n, null, alternative, variance, cor_z, alpha_nom, a, c_
 
 opt_crit_value_cp <- function(cor_z, alpha_nom, a, c_x, c_y, n_y, b_null, b_alt) {
 
-  crit <- optimise(value_cp_obj, lower = b_null, upper = b_alt,
+  crit <- optimise(value_cp_obj, lower = b_null, upper = 5,
         cor_z = cor_z, alpha_nom = alpha_nom,
         a = a, c_x = c_x, c_y = c_y, n_y = n_y, b_null = b_null)$minimum
 
@@ -75,7 +79,7 @@ int_cond_z_1_cp <- function(z_1, mean, cor_z, a, c_x, c_y, n_y, crit) {
 
   # Get mean m and sd s of the conditional distribution
   m <- mean[2] + cor_z*(z_1 - mean[1])
-  s <- sqrt(1 - cor_z^2)
+  sd <- sqrt(1 - cor_z^2)
 
   w <- (c_x)/(c_y - n_y - a*c_x*n_y)
   s <- (c_x - crit)/c_x
@@ -89,7 +93,7 @@ int_cond_z_1_cp <- function(z_1, mean, cor_z, a, c_x, c_y, n_y, crit) {
 
   # Calculate the conditional prob and weight by the marginal
   # prob of z_1
-  (1 - pnorm(low, m, s))*dnorm(z_1, mean[1], 1)
+  (1 - pnorm(low, m, sd))*dnorm(z_1, mean[1], 1)
 }
 
 ocs_value_cp_wrong <- function(n, null, alternative, cor_z, alpha_nom, variance, a, c_x, c_y, n_y) {
@@ -100,12 +104,12 @@ ocs_value_cp_wrong <- function(n, null, alternative, cor_z, alpha_nom, variance,
   b_null <- null/sqrt(2*variance/n)
   b_alt <- alternative/sqrt(2*variance/n)
 
-  opt <- optim(0, value_cp_wrong_obj, lower = -5, upper = 5, method = "Brent",
+  opt <- optimise(value_cp_wrong_obj, lower = b_null, upper = 5,
                 cor_z = cor_z, alpha_nom = alpha_nom,
                 a = a, c_x = c_x, c_y = c_y, n_y = n_y, b_null = b_null)
 
-  crit <- opt$par
-  tI <- sqrt(opt$value) + alpha_nom
+  crit <- opt$minimum
+  tI <- sqrt(opt$objective) + alpha_nom
 
   df <- search_points(a, c_x, c_y, n_y, b_alt)
 
@@ -147,12 +151,14 @@ search_points <- function(a, c_x, c_y, n_y, b, size = 50) {
   z_1 <- (seq(sqrt(0.001), sqrt(10), length.out = size))^2 + b
   z_2 <- c_y - s*(c_y - (w*c_y - (c_x - (c_x - z_1)/s))/(w + w*a*(c_x - (c_x - z_1)/s)))
 
-  df <- data.frame(z_1 = z_1, z_2 = z_2)
-  df <- df[df$z_1 <= c_x & df$z_2 <= c_y & df$z_2 >= n_y,]
+  crit_y <- c_y - s*(c_y - (w*c_y - c_x)/(w + w*a*c_x))
 
-  df <- rbind(data.frame(z_1 = rep(b, size), z_2 = seq(15, c_y, length.out = size)),
-              df,
-              data.frame(z_1 = seq(c_x, 15, length.out = size), z_2 = rep(df[nrow(df), "z_2"], size)))
+    df <- data.frame(z_1 = z_1, z_2 = z_2)
+    df <- df[df$z_1 <= c_x & df$z_2 <= c_y & df$z_2 >= n_y,]
+
+    df <- rbind(data.frame(z_1 = rep(b, size), z_2 = seq(15, c_y, length.out = size)),
+                df,
+                data.frame(z_1 = seq(c_x, 15, length.out = size), z_2 = rep(crit_y, size)))
 
   return(df)
 }

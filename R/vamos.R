@@ -11,6 +11,7 @@ vamos <- function(null, alternative, sigma, alpha_nom, beta_nom, problem, max_n,
   final_n <- NULL
   while(max_n - min_n > 1) {
     n <- floor((min_n + max_n)/2)
+    print(n)
     ocs <- vamos_n(n, null, alternative, sigma, alpha_nom, problem, ...)
     beta <- ocs[2]
     powered <- beta < beta_nom

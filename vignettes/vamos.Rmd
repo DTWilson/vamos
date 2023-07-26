@@ -278,8 +278,8 @@ Note that we are assuming a large sample setting such that the covariance matrix
 ```{r}
 library(mvtnorm)
 
-a <- 1
-c <- 7
+a <- 5
+c <- 3
 sigma <- matrix(c(1, 0.3, 0.3, 1), ncol = 2)
 cor_z <- sigma[1,2]
 variance <- sigma[1,1]
@@ -287,16 +287,7 @@ alpha_nom <- 0.05
 null <- 0
 alternative <- 0.3
 
-ns <- seq(100, 500, 100)
-r <- NULL
-for(n in ns){
-  r <- rbind(r, ocs_value_cp(n, null, alternative, variance, cor_z, alpha_nom,  a, c_x = c, c_y = c, n_y = 0))
-}
+vamos(null, alternative, sigma, alpha_nom=0.05, beta_nom=0.2, "value", 1000, .a=a, .c_x=c, .c_y=c, .n_y=0)
 
-r2 <- NULL
-for(n in ns){
-  r2 <- rbind(r2, ocs_value_cp_wrong(n, null, alternative, cor_z, alpha_nom, variance, a, c_x = c, c_y = c, n_y = 0))
-}
-
-cbind(r[,2], r2[,2], r2[,2] - r[,2], r2[,2]/r[,2])
+ocs_value_cp_wrong(147, null, alternative, cor_z, alpha_nom, variance, a, c_x = c, c_y = c, n_y = 0)
 ```
