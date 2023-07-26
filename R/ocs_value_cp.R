@@ -1,38 +1,41 @@
 
-ocs_value_cp <- function(n, null, alternative, cor_z, alpha_nom, variance, a, c_x, c_y, n_y) {
+ocs_value_cp <- function(n, null, alternative, variance, cor_z, alpha_nom, a, c_x, c_y, n_y) {
 
   # Optimal OCs for value-based approach of the co-primary nature
-
   b_null <- null/sqrt(2*variance/n)
   b_alt <- alternative/sqrt(2*variance/n)
 
-  crit <- opt_crit_value_cp(cor_z, alpha_nom, a, c_x, c_y, n_y, b_null)
+  crit <- opt_crit_value_cp(cor_z, alpha_nom, a, c_x, c_y, n_y, b_null, b_alt)
 
   tI <- sqrt(value_cp_obj(crit, cor_z, alpha_nom, a, c_x, c_y, n_y, b_null)) + alpha_nom
 
   df <- search_points(a, c_x, c_y, n_y, b_alt)
 
   # Run a a simple exhaustive search
-  rule_master <- gaussHermiteData(100)
+  #rule_master <- gaussHermiteData(100)
   tII <- NULL
   for(i in 1:nrow(df)){
-    rule <- rule_master
-    rule$x <- rule$x*sqrt(2)*1 + as.numeric(df[i,1])
+    #rule <- rule_master
+    #rule$x <- rule$x*sqrt(2)*1 + as.numeric(df[i,1])
 
-    tII <- c(tII, 1 - ghQuad(f = int_cond_z_1_cp, rule = rule,
-                       mean = as.numeric(df[i,]),
-                       cor_z=cor_z, a=a, c_x=c_x, c_y=c_y, crit=crit)/sqrt(pi))
+    #tII <- c(tII, 1 - ghQuad(f = int_cond_z_1_cp, rule = rule,
+    #                   mean = as.numeric(df[i,]),
+    #                   cor_z=cor_z, a=a, c_x=c_x, c_y=c_y, n_y, crit=crit)/sqrt(pi))
+
+    tII <- c(tII, 1 - integrate(f = int_cond_z_1_cp, lower = crit, upper = Inf,
+                          mean = as.numeric(df[i,]),
+                          cor_z=cor_z, a=a, c_x=c_x, c_y=c_y, n_y=n_y, crit=crit)$value)
   }
 
   return(c(tI, max(tII)))
 }
 
 
-opt_crit_value_cp <- function(cor_z, alpha_nom, a, c_x, c_y, n_y, b_null) {
+opt_crit_value_cp <- function(cor_z, alpha_nom, a, c_x, c_y, n_y, b_null, b_alt) {
 
-  crit <- optim(0, value_cp_obj, lower = -5, upper = 5, method = "Brent",
-                cor_z = cor_z, alpha_nom = alpha_nom,
-                a = a, c_x = c_x, c_y = c_y, n_y = n_y, b_null = b_null)$par
+  crit <- optimise(value_cp_obj, lower = b_null, upper = b_alt,
+        cor_z = cor_z, alpha_nom = alpha_nom,
+        a = a, c_x = c_x, c_y = c_y, n_y = n_y, b_null = b_null)$minimum
 
   return(crit)
 }
@@ -45,22 +48,27 @@ value_cp_obj <- function(crit, cor_z, alpha_nom, a, c_x, c_y, n_y, b_null) {
   df <- search_points(a, c_x, c_y, n_y, b_null)
 
   # Run a a simple exhaustive search
-  rule_master <- gaussHermiteData(100)
+  #rule_master <- gaussHermiteData(100)
   tI <- NULL
   for(i in 1:nrow(df)){
-    rule <- rule_master
-    rule$x <- rule$x*sqrt(2)*1 + as.numeric(df[i,1])
+    #rule <- rule_master
+    #rule$x <- rule$x*sqrt(2)*1 + as.numeric(df[i,1])
 
-    tI <- c(tI, ghQuad(f = int_cond_z_1_cp, rule = rule,
+    #tI <- c(tI, ghQuad(f = int_cond_z_1_cp, rule = rule,
+    #                   mean = as.numeric(df[i,]),
+    #                   cor_z=cor_z, a=a, c_x=c_x, c_y=c_y, n_y=n_y, crit=crit)/sqrt(pi))
+
+    tI <- c(tI, integrate(f = int_cond_z_1_cp, lower = crit, upper = Inf,
                        mean = as.numeric(df[i,]),
-                       cor_z=cor_z, a=a, c_x=c_x, c_y=c_y, crit=crit)/sqrt(pi))
+                       cor_z=cor_z, a=a, c_x=c_x, c_y=c_y, n_y=n_y, crit=crit)$value)
   }
+  max(tI)
 
   # Return the penalised objective to be minimised
   return((max(tI)  - alpha_nom)^2)
 }
 
-int_cond_z_1_cp <- function(z_1, mean, cor_z, a, c_x, c_y, crit) {
+int_cond_z_1_cp <- function(z_1, mean, cor_z, a, c_x, c_y, n_y, crit) {
   # For a given z_1, calculate the conditional probability of landing in the
   # critical region based on the conditional distribution z_2 | z_1, when
   # the joint dist of (z_1, z_2) has a given mean and correlation
@@ -81,7 +89,7 @@ int_cond_z_1_cp <- function(z_1, mean, cor_z, a, c_x, c_y, crit) {
 
   # Calculate the conditional prob and weight by the marginal
   # prob of z_1
-  (1 - pnorm(low, m, s))#*dnorm(z_1, mean[1], 1)
+  (1 - pnorm(low, m, s))*dnorm(z_1, mean[1], 1)
 }
 
 ocs_value_cp_wrong <- function(n, null, alternative, cor_z, alpha_nom, variance, a, c_x, c_y, n_y) {

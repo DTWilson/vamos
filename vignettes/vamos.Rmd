@@ -290,7 +290,7 @@ alternative <- 0.3
 ns <- seq(100, 500, 100)
 r <- NULL
 for(n in ns){
-  r <- rbind(r, ocs_value_cp(n, null, alternative, cor_z, alpha_nom, variance, a, c_x = c, c_y = c, n_y = 0))
+  r <- rbind(r, ocs_value_cp(n, null, alternative, variance, cor_z, alpha_nom,  a, c_x = c, c_y = c, n_y = 0))
 }
 
 r2 <- NULL
