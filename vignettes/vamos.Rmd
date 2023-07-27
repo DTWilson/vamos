@@ -240,7 +240,7 @@ hyp_plot <- function(a, c_x, c_y = c_x, n_y = 0, b_null = 0, b_alt = 2.486475) {
     theme_minimal()
 }
 
-p1 <- hyp_plot(0.2, 7); p2 <- hyp_plot(1, 7); p3 <- hyp_plot(5, 7); p4 <- hyp_plot(100, 7)
+p1 <- hyp_plot(0.2, 7); p2 <- hyp_plot(1, 7); p3 <- hyp_plot(5, 7); p4 <- hyp_plot(20, 7)
 
 (p1 + p2) / (p3 + p4) + plot_layout(guides = "collect")
 ```
@@ -251,7 +251,7 @@ Given we are working on the standardised effect scale, the above assumptions imp
 hyp_plot(a = 1, c_x = 6, c_y = 9, n_y = -2, b_alt = 2)
 ```
 ```{r}
-hyp_plot(a = 5, c_x = 7, c_y = 7, n_y = 0, b_alt = 2.4)
+hyp_plot(a = -5, c_x = -7, c_y = -7, n_y = 0, b_alt = 2.4)
 hyp_plot(a = 5, c_x = 7, c_y = 9, n_y = 0, b_alt = 2.4)
 ```
 
@@ -281,7 +281,7 @@ Note that we are assuming a large sample setting such that the covariance matrix
 ```{r}
 library(mvtnorm)
 
-a <- 5
+a <- 1
 c <- 7
 sigma <- matrix(c(1, 0, 0, 1), ncol = 2)
 cor_z <- sigma[1,2]
@@ -290,7 +290,7 @@ alpha_nom <- 0.05
 null <- 0
 alternative <- 0.3
 
-vamos(null, alternative, sigma, alpha_nom=0.05, beta_nom=0.2, "value", 1000, .a=a, .c_x=c, .c_y=9, .n_y=0)
+vamos(null, alternative, sigma, alpha_nom, beta_nom=0.2, "value", 1000, .a=a, .c_x=c, .c_y=c, .n_y=0)
 
-ocs_value_cp_wrong(172, null, alternative, cor_z, alpha_nom, variance, a, c_x = c, c_y = 9, n_y = 0)
+ocs_value_cp_wrong(260, null, alternative, cor_z, alpha_nom, variance, a, c_x = c, c_y = c, n_y = 0)
 ```

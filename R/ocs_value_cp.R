@@ -11,16 +11,26 @@ ocs_value_cp <- function(n, null, alternative, variance, cor_z, alpha_nom, a, c_
 
   tI <- sqrt(value_cp_alpha(crit, z, cor_z, alpha_nom, a, c_x, c_y, n_y, b_null)) + alpha_nom
 
-  df <- search_points(a, c_x, c_y, n_y, b_alt, size = 100)
+  df <- search_points(a, c_x, c_y, n_y, b_alt)
 
   # Run a a simple exhaustive search
   tII <- NULL
-  for(i in 1:nrow(df)){
+  if(a >= 0) {
+    for(i in 1:nrow(df)){
 
-    tII <- c(tII, 1 - integrate(f = int_cond_z_1_cp, lower = crit, upper = Inf,
-                          mean = as.numeric(df[i,]),
-                          cor_z=cor_z, a=a, c_x=c_x, c_y=c_y, n_y=n_y, crit=crit)$value)
+      tII <- c(tII, 1 - integrate(f = int_cond_z_1_cp, lower = crit, upper = Inf,
+                            mean = as.numeric(df[i,]),
+                            cor_z=cor_z, a=a, c_x=c_x, c_y=c_y, n_y=n_y, crit=crit)$value)
+    }
+  } else {
+    for(i in 1:nrow(df)){
+
+      tII <- c(tII, 1 - integrate(f = int_cond_z_1_cp, lower = -Inf, upper = Inf,
+                                  mean = as.numeric(df[i,]),
+                                  cor_z=cor_z, a=a, c_x=c_x, c_y=c_y, n_y=n_y, crit=crit)$value)
+    }
   }
+  max(tII)
 
   return(c(tI, max(tII)))
 }
@@ -43,14 +53,21 @@ opt_crit_value_cp <- function(cor_z, alpha_nom, a, c_x, c_y, n_y, b_null, b_alt)
 
 z_1_to_maximise <- function(crit, cor_z, alpha_nom, a, c_x, c_y, n_y, b_null) {
 
-  df <- search_points(a, c_x, c_y, n_y, b_null, size = 100)
+  df <- search_points(a, c_x, c_y, n_y, b_null)
 
   tI <- NULL
-  for(i in 1:nrow(df)){
-
-    tI <- c(tI, integrate(f = int_cond_z_1_cp, lower = crit, upper = Inf,
-                          mean = as.numeric(df[i,]),
-                          cor_z=cor_z, a=a, c_x=c_x, c_y=c_y, n_y=n_y, crit=crit)$value)
+  if(a >= 0){
+    for(i in 1:nrow(df)){
+      tI <- c(tI, integrate(f = int_cond_z_1_cp, lower = crit, upper = Inf,
+                            mean = as.numeric(df[i,]),
+                            cor_z=cor_z, a=a, c_x=c_x, c_y=c_y, n_y=n_y, crit=crit)$value)
+    }
+  } else {
+    for(i in 1:nrow(df)){
+      tI <- c(tI, integrate(f = int_cond_z_1_cp, lower = -Inf, upper = Inf,
+                            mean = as.numeric(df[i,]),
+                            cor_z=cor_z, a=a, c_x=c_x, c_y=c_y, n_y=n_y, crit=crit)$value)
+    }
   }
 
   z <- as.numeric(df[which.max(tI),])
@@ -69,16 +86,18 @@ crit_to_minimise <- function(z, cor_z, alpha_nom, a, c_x, c_y, n_y, b_null) {
 
 value_cp_alpha <- function(crit, mean, cor_z, alpha_nom, a, c_x, c_y, n_y, b_null) {
 
-  alpha <- integrate(f = int_cond_z_1_cp, lower = crit, upper = Inf,
-                     mean = mean,
-                     cor_z=cor_z, a=a, c_x=c_x, c_y=c_y, n_y=n_y, crit=crit)$value
+  if(a >= 0) {
+    alpha <- integrate(f = int_cond_z_1_cp, lower = crit, upper = Inf,
+                       mean = mean,
+                       cor_z=cor_z, a=a, c_x=c_x, c_y=c_y, n_y=n_y, crit=crit)$value
+  } else {
+    alpha <- integrate(f = int_cond_z_1_cp, lower = -Inf, upper = Inf,
+                       mean = mean,
+                       cor_z=cor_z, a=a, c_x=c_x, c_y=c_y, n_y=n_y, crit=crit)$value
+  }
 
   return((alpha - alpha_nom)^2)
 }
-
-
-
-
 
 int_cond_z_1_cp <- function(z_1, mean, cor_z, a, c_x, c_y, n_y, crit) {
   # For a given z_1, calculate the conditional probability of landing in the
@@ -95,14 +114,24 @@ int_cond_z_1_cp <- function(z_1, mean, cor_z, a, c_x, c_y, n_y, crit) {
   crit_y <- c_y - s*(c_y - (w*c_y - c_x)/(w + w*a*c_x))
 
   # Find the lower limit for the integration over z_2
-  low <- ifelse(z_1 > c_x, crit_y,
-                ifelse(z_1 > crit, c_y - s*(c_y - (w*c_y - (c_x - (c_x - z_1)/s))/(w + w*a*(c_x - (c_x - z_1)/s))),
-                       Inf))
+  if(a >= 0) {
+    low <- ifelse(z_1 > c_x, crit_y,
+                  ifelse(z_1 > crit, c_y - s*(c_y - (w*c_y - (c_x - (c_x - z_1)/s))/(w + w*a*(c_x - (c_x - z_1)/s))),
+                         Inf))
+  } else {
+    low <- ifelse(z_1 < c_x, crit_y,
+                  ifelse(z_1 < crit, c_y - s*(c_y - (w*c_y - (c_x - (c_x - z_1)/s))/(w + w*a*(c_x - (c_x - z_1)/s))),
+                         -Inf))
+  }
 
   # Calculate the conditional prob and weight by the marginal
   # prob of z_1
   (1 - pnorm(low, m, sd))*dnorm(z_1, mean[1], 1)
 }
+
+
+
+
 
 ocs_value_cp_wrong <- function(n, null, alternative, cor_z, alpha_nom, variance, a, c_x, c_y, n_y) {
 
@@ -123,9 +152,16 @@ ocs_value_cp_wrong <- function(n, null, alternative, cor_z, alpha_nom, variance,
 
   # Run a a simple exhaustive search
   tII <- NULL
-  for(i in 1:nrow(df)){
-    tII <- c(tII, 1 - pmvnorm(lower = c(crit, crit), upper = c(Inf, Inf),
-                              mean = as.numeric(df[i,]), sigma = matrix(c(1, cor_z, cor_z, 1), ncol = 2)))
+  if(a >= 0) {
+    for(i in 1:nrow(df)){
+      tII <- c(tII, 1 - pmvnorm(lower = c(crit, crit), upper = c(Inf, Inf),
+                                mean = as.numeric(df[i,]), sigma = matrix(c(1, cor_z, cor_z, 1), ncol = 2)))
+    }
+  } else {
+    for(i in 1:nrow(df)){
+      tII <- c(tII, pmvnorm(lower = c(-Inf, -Inf), upper = c(crit, crit),
+                                mean = as.numeric(df[i,]), sigma = matrix(c(1, cor_z, cor_z, 1), ncol = 2)))
+    }
   }
   max(tII)
 
@@ -140,9 +176,16 @@ value_cp_wrong_obj <- function(crit, cor_z, alpha_nom, a, c_x, c_y, n_y, b_null)
 
   # Run a a simple exhaustive search
   tI <- NULL
-  for(i in 1:nrow(df)){
-    tI <- c(tI, pmvnorm(lower = c(crit, crit), upper = c(Inf, Inf),
-                        mean = as.numeric(df[i,]), sigma = matrix(c(1, cor_z, cor_z, 1), ncol = 2)))
+  if(a >= 0) {
+    for(i in 1:nrow(df)){
+      tI <- c(tI, pmvnorm(lower = c(crit, crit), upper = c(Inf, Inf),
+                          mean = as.numeric(df[i,]), sigma = matrix(c(1, cor_z, cor_z, 1), ncol = 2)))
+    }
+  } else {
+    for(i in 1:nrow(df)){
+      tI <- c(tI, 1 - pmvnorm(lower = c(-Inf, -Inf), upper = c(crit, crit),
+                          mean = as.numeric(df[i,]), sigma = matrix(c(1, cor_z, cor_z, 1), ncol = 2)))
+    }
   }
   max(tI)
 
@@ -151,22 +194,40 @@ value_cp_wrong_obj <- function(crit, cor_z, alpha_nom, a, c_x, c_y, n_y, b_null)
 }
 
 
-search_points <- function(a, c_x, c_y, n_y, b, size = 50) {
-  # Build a data frame of points along a hypothesis boundary
+search_points <- function(a, c_x, c_y, n_y, b, size = 100) {
+
+  # Build a data frame of points along a hypothesis boundary defined by b, the marginal
+  # alternative for the x outcome
   w <- (c_x)/(c_y - n_y - a*c_x*n_y)
   s <- (c_x - b)/c_x
 
-  z_1 <- (seq(sqrt(0.001), sqrt(10), length.out = size))^2 + b
-  z_2 <- c_y - s*(c_y - (w*c_y - (c_x - (c_x - z_1)/s))/(w + w*a*(c_x - (c_x - z_1)/s)))
+  # Two cases, co_primary and multiple endpoints
+  if(a >= 0){
+    z_1 <- (seq(sqrt(0.001), sqrt(10), length.out = size))^2 + b
+    z_2 <- c_y - s*(c_y - (w*c_y - (c_x - (c_x - z_1)/s))/(w + w*a*(c_x - (c_x - z_1)/s)))
 
-  crit_y <- c_y - s*(c_y - (w*c_y - c_x)/(w + w*a*c_x))
+    crit_y <- c_y - s*(c_y - (w*c_y - c_x)/(w + w*a*c_x))
 
-  df <- data.frame(z_1 = z_1, z_2 = z_2)
-  df <- df[df$z_1 <= c_x & df$z_2 <= c_y & df$z_2 >= n_y,]
+    df <- data.frame(z_1 = z_1, z_2 = z_2)
+    df <- df[df$z_1 <= c_x & df$z_2 <= c_y & df$z_2 >= n_y,]
 
-  df <- rbind(data.frame(z_1 = rep(b, size), z_2 = seq(15, max(c_y, crit_y), length.out = size)),
-              df,
-              data.frame(z_1 = seq(max(c_x, b), 15, length.out = size), z_2 = rep(crit_y, size)))
+    df <- rbind(data.frame(z_1 = rep(b, size), z_2 = seq(15, max(c_y, crit_y), length.out = size)),
+                df,
+                data.frame(z_1 = seq(max(c_x, b), 15, length.out = size), z_2 = rep(crit_y, size)))
+  } else {
+    z_1 <- -(seq(sqrt(0.001), sqrt(10), length.out = size))^2 + b
+    z_2 <- c_y - s*(c_y - (w*c_y - (c_x - (c_x - z_1)/s))/(w + w*a*(c_x - (c_x - z_1)/s)))
+
+    crit_y <- c_y - s*(c_y - (w*c_y - c_x)/(w + w*a*c_x))
+
+    df <- data.frame(z_1 = z_1, z_2 = z_2)
+    df <- df[df$z_1 >= c_x & df$z_2 >= c_y,]
+
+    df <- rbind(data.frame(z_1 = rep(b, size), z_2 = seq(-15, min(c_y, crit_y), length.out = size)),
+                df,
+                data.frame(z_1 = seq(min(c_x, b), -15, length.out = size), z_2 = rep(crit_y, size)))
+
+  }
 
   return(df)
 }
@@ -183,15 +244,8 @@ value_cp_obj <- function(crit, cor_z, alpha_nom, a, c_x, c_y, n_y, b_null) {
   df <- search_points(a, c_x, c_y, n_y, b_null)
 
   # Run a a simple exhaustive search
-  #rule_master <- gaussHermiteData(100)
   tI <- NULL
   for(i in 1:nrow(df)){
-    #rule <- rule_master
-    #rule$x <- rule$x*sqrt(2)*1 + as.numeric(df[i,1])
-
-    #tI <- c(tI, ghQuad(f = int_cond_z_1_cp, rule = rule,
-    #                   mean = as.numeric(df[i,]),
-    #                   cor_z=cor_z, a=a, c_x=c_x, c_y=c_y, n_y=n_y, crit=crit)/sqrt(pi))
 
     tI <- c(tI, integrate(f = int_cond_z_1_cp, lower = crit, upper = Inf,
                           mean = as.numeric(df[i,]),

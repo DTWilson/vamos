@@ -56,11 +56,3 @@ vamos_n <- function(n, null, alternative, sigma, alpha_nom, problem, ...) {
 
   return(ocs)
 }
-
-test <- function(x, ...) {
-  vp <- list(...)
-  print(vp$b)
-  for(i in vp) {
-    print(x * i)
-  }
-}
