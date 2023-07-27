@@ -5,10 +5,6 @@ ocs_value_cp <- function(n, null, alternative, variance, cor_z, alpha_nom, a, c_
   b_null <- null/sqrt(2*variance/n)
   b_alt <- alternative/sqrt(2*variance/n)
 
-  if(b_alt > c_x | b_alt > c_y){
-    stop("Alternative hypothesis is beyond the trade-off region.")
-  }
-
   crit <- opt_crit_value_cp(cor_z, alpha_nom, a, c_x, c_y, n_y, b_null, b_alt)
 
   tI <- sqrt(value_cp_obj(crit, cor_z, alpha_nom, a, c_x, c_y, n_y, b_null)) + alpha_nom
@@ -66,7 +62,7 @@ value_cp_obj <- function(crit, cor_z, alpha_nom, a, c_x, c_y, n_y, b_null) {
                        mean = as.numeric(df[i,]),
                        cor_z=cor_z, a=a, c_x=c_x, c_y=c_y, n_y=n_y, crit=crit)$value)
   }
-  max(tI)
+  which.max(tI)
 
   # Return the penalised objective to be minimised
   return((max(tI)  - alpha_nom)^2)
@@ -153,12 +149,54 @@ search_points <- function(a, c_x, c_y, n_y, b, size = 50) {
 
   crit_y <- c_y - s*(c_y - (w*c_y - c_x)/(w + w*a*c_x))
 
-    df <- data.frame(z_1 = z_1, z_2 = z_2)
-    df <- df[df$z_1 <= c_x & df$z_2 <= c_y & df$z_2 >= n_y,]
+  df <- data.frame(z_1 = z_1, z_2 = z_2)
+  df <- df[df$z_1 <= c_x & df$z_2 <= c_y & df$z_2 >= n_y,]
 
-    df <- rbind(data.frame(z_1 = rep(b, size), z_2 = seq(15, c_y, length.out = size)),
-                df,
-                data.frame(z_1 = seq(c_x, 15, length.out = size), z_2 = rep(crit_y, size)))
+  df <- rbind(data.frame(z_1 = rep(b, size), z_2 = seq(15, max(c_y, crit_y), length.out = size)),
+              df,
+              data.frame(z_1 = seq(max(c_x, b), 15, length.out = size), z_2 = rep(crit_y, size)))
 
   return(df)
 }
+
+z_1_to_maximise <- function(crit) {
+
+  df <- search_points(a, c_x, c_y, n_y, b_null)
+
+  # Run a a simple exhaustive search
+  #rule_master <- gaussHermiteData(100)
+  tI <- NULL
+  for(i in 1:nrow(df)){
+    #rule <- rule_master
+    #rule$x <- rule$x*sqrt(2)*1 + as.numeric(df[i,1])
+
+    #tI <- c(tI, ghQuad(f = int_cond_z_1_cp, rule = rule,
+    #                   mean = as.numeric(df[i,]),
+    #                   cor_z=cor_z, a=a, c_x=c_x, c_y=c_y, n_y=n_y, crit=crit)/sqrt(pi))
+
+    tI <- c(tI, integrate(f = int_cond_z_1_cp, lower = crit, upper = Inf,
+                          mean = as.numeric(df[i,]),
+                          cor_z=cor_z, a=a, c_x=c_x, c_y=c_y, n_y=n_y, crit=crit)$value)
+  }
+  z <- as.numeric(df[which.max(tI),])
+}
+
+crit_to_minimise <- function(z) {
+
+  crit <- optimise(tester, lower = b_null, upper = 15, mean = z,
+                   cor_z = cor_z, alpha_nom = alpha_nom,
+                   a = a, c_x = c_x, c_y = c_y, n_y = n_y, b_null = b_null)$minimum
+
+}
+
+tester <- function(crit, mean, cor_z, alpha_nom, a, c_x, c_y, n_y, b_null) {
+
+  alpha <- integrate(f = int_cond_z_1_cp, lower = crit, upper = Inf,
+            mean = mean,
+            cor_z=cor_z, a=a, c_x=c_x, c_y=c_y, n_y=n_y, crit=crit)$value
+
+  return((alpha - alpha_nom)^2)
+}
+
+
+
