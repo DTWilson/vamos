@@ -9,7 +9,9 @@ vamos <- function(null, alternative, sigma, alpha_nom, beta_nom, problem, max_n,
   powered <- FALSE
   min_n <- 0
   final_n <- NULL
+  cat("Searching for optimal n")
   while(max_n - min_n > 1) {
+    cat(".")
     n <- floor((min_n + max_n)/2)
     ocs <- vamos_n(n, null, alternative, sigma, alpha_nom, problem, ...)
     beta <- ocs[2]
@@ -21,6 +23,7 @@ vamos <- function(null, alternative, sigma, alpha_nom, beta_nom, problem, max_n,
       min_n <- n
     }
   }
+  cat("\n")
   n
 
   return(c(n, ocs))

@@ -5,22 +5,17 @@ ocs_value_cp <- function(n, null, alternative, variance, cor_z, alpha_nom, a, c_
   b_null <- null/sqrt(2*variance/n)
   b_alt <- alternative/sqrt(2*variance/n)
 
-  crit <- opt_crit_value_cp(cor_z, alpha_nom, a, c_x, c_y, n_y, b_null, b_alt)
+  r <- opt_crit_value_cp(cor_z, alpha_nom, a, c_x, c_y, n_y, b_null, b_alt)
+  crit <- r[1]
+  z <- r[2:3]
 
-  tI <- sqrt(value_cp_obj(crit, cor_z, alpha_nom, a, c_x, c_y, n_y, b_null)) + alpha_nom
+  tI <- sqrt(value_cp_alpha(crit, z, cor_z, alpha_nom, a, c_x, c_y, n_y, b_null)) + alpha_nom
 
-  df <- search_points(a, c_x, c_y, n_y, b_alt)
+  df <- search_points(a, c_x, c_y, n_y, b_alt, size = 100)
 
   # Run a a simple exhaustive search
-  #rule_master <- gaussHermiteData(100)
   tII <- NULL
   for(i in 1:nrow(df)){
-    #rule <- rule_master
-    #rule$x <- rule$x*sqrt(2)*1 + as.numeric(df[i,1])
-
-    #tII <- c(tII, 1 - ghQuad(f = int_cond_z_1_cp, rule = rule,
-    #                   mean = as.numeric(df[i,]),
-    #                   cor_z=cor_z, a=a, c_x=c_x, c_y=c_y, n_y, crit=crit)/sqrt(pi))
 
     tII <- c(tII, 1 - integrate(f = int_cond_z_1_cp, lower = crit, upper = Inf,
                           mean = as.numeric(df[i,]),
@@ -33,40 +28,57 @@ ocs_value_cp <- function(n, null, alternative, variance, cor_z, alpha_nom, a, c_
 
 opt_crit_value_cp <- function(cor_z, alpha_nom, a, c_x, c_y, n_y, b_null, b_alt) {
 
-  crit <- optimise(value_cp_obj, lower = b_null, upper = 5,
-        cor_z = cor_z, alpha_nom = alpha_nom,
-        a = a, c_x = c_x, c_y = c_y, n_y = n_y, b_null = b_null)$minimum
+  crit <- (b_null + b_alt)/2
+  error <- 1
+  while(error > 10^-5) {
+    z <- z_1_to_maximise(crit, cor_z, alpha_nom, a, c_x, c_y, n_y, b_null)
+    new_crit <- crit_to_minimise(z, cor_z, alpha_nom, a, c_x, c_y, n_y, b_null)
+    error <- (crit - new_crit)^2
+    crit <- new_crit
+  }
 
-  return(crit)
+  return(c(crit, z))
 }
 
 
-value_cp_obj <- function(crit, cor_z, alpha_nom, a, c_x, c_y, n_y, b_null) {
+z_1_to_maximise <- function(crit, cor_z, alpha_nom, a, c_x, c_y, n_y, b_null) {
 
-  # Search over the null hypothesis boundary to find the maximum type I error
-  # rate.
-  df <- search_points(a, c_x, c_y, n_y, b_null)
+  df <- search_points(a, c_x, c_y, n_y, b_null, size = 100)
 
-  # Run a a simple exhaustive search
-  #rule_master <- gaussHermiteData(100)
   tI <- NULL
   for(i in 1:nrow(df)){
-    #rule <- rule_master
-    #rule$x <- rule$x*sqrt(2)*1 + as.numeric(df[i,1])
-
-    #tI <- c(tI, ghQuad(f = int_cond_z_1_cp, rule = rule,
-    #                   mean = as.numeric(df[i,]),
-    #                   cor_z=cor_z, a=a, c_x=c_x, c_y=c_y, n_y=n_y, crit=crit)/sqrt(pi))
 
     tI <- c(tI, integrate(f = int_cond_z_1_cp, lower = crit, upper = Inf,
-                       mean = as.numeric(df[i,]),
-                       cor_z=cor_z, a=a, c_x=c_x, c_y=c_y, n_y=n_y, crit=crit)$value)
+                          mean = as.numeric(df[i,]),
+                          cor_z=cor_z, a=a, c_x=c_x, c_y=c_y, n_y=n_y, crit=crit)$value)
   }
-  which.max(tI)
 
-  # Return the penalised objective to be minimised
-  return((max(tI)  - alpha_nom)^2)
+  z <- as.numeric(df[which.max(tI),])
+  return(z)
 }
+
+crit_to_minimise <- function(z, cor_z, alpha_nom, a, c_x, c_y, n_y, b_null) {
+
+  crit <- optimise(value_cp_alpha, lower = b_null, upper = 15, mean = z,
+                   cor_z = cor_z, alpha_nom = alpha_nom,
+                   a = a, c_x = c_x, c_y = c_y, n_y = n_y, b_null = b_null)$minimum
+
+  return(crit)
+
+}
+
+value_cp_alpha <- function(crit, mean, cor_z, alpha_nom, a, c_x, c_y, n_y, b_null) {
+
+  alpha <- integrate(f = int_cond_z_1_cp, lower = crit, upper = Inf,
+                     mean = mean,
+                     cor_z=cor_z, a=a, c_x=c_x, c_y=c_y, n_y=n_y, crit=crit)$value
+
+  return((alpha - alpha_nom)^2)
+}
+
+
+
+
 
 int_cond_z_1_cp <- function(z_1, mean, cor_z, a, c_x, c_y, n_y, crit) {
   # For a given z_1, calculate the conditional probability of landing in the
@@ -159,8 +171,15 @@ search_points <- function(a, c_x, c_y, n_y, b, size = 50) {
   return(df)
 }
 
-z_1_to_maximise <- function(crit) {
 
+
+
+
+
+value_cp_obj <- function(crit, cor_z, alpha_nom, a, c_x, c_y, n_y, b_null) {
+
+  # Search over the null hypothesis boundary to find the maximum type I error
+  # rate.
   df <- search_points(a, c_x, c_y, n_y, b_null)
 
   # Run a a simple exhaustive search
@@ -178,25 +197,8 @@ z_1_to_maximise <- function(crit) {
                           mean = as.numeric(df[i,]),
                           cor_z=cor_z, a=a, c_x=c_x, c_y=c_y, n_y=n_y, crit=crit)$value)
   }
-  z <- as.numeric(df[which.max(tI),])
+  which.max(tI)
+
+  # Return the penalised objective to be minimised
+  return((max(tI)  - alpha_nom)^2)
 }
-
-crit_to_minimise <- function(z) {
-
-  crit <- optimise(tester, lower = b_null, upper = 15, mean = z,
-                   cor_z = cor_z, alpha_nom = alpha_nom,
-                   a = a, c_x = c_x, c_y = c_y, n_y = n_y, b_null = b_null)$minimum
-
-}
-
-tester <- function(crit, mean, cor_z, alpha_nom, a, c_x, c_y, n_y, b_null) {
-
-  alpha <- integrate(f = int_cond_z_1_cp, lower = crit, upper = Inf,
-            mean = mean,
-            cor_z=cor_z, a=a, c_x=c_x, c_y=c_y, n_y=n_y, crit=crit)$value
-
-  return((alpha - alpha_nom)^2)
-}
-
-
-
