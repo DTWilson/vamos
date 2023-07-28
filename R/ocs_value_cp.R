@@ -7,9 +7,9 @@ ocs_value_cp <- function(n, null, alternative, variance, cor_z, alpha_nom, a, c_
 
   r <- opt_crit_value_cp(cor_z, alpha_nom, a, c_x, c_y, n_y, b_null, b_alt)
   crit <- r[1]
-  z <- r[2:3]
+  z_null <- r[2:3]
 
-  tI <- sqrt(value_cp_alpha(crit, z, cor_z, alpha_nom, a, c_x, c_y, n_y, b_null)) + alpha_nom
+  tI <- sqrt(value_cp_alpha(crit, z_null, cor_z, alpha_nom, a, c_x, c_y, n_y, b_null)) + alpha_nom
 
   df <- search_points(a, c_x, c_y, n_y, b_alt)
 
@@ -30,9 +30,9 @@ ocs_value_cp <- function(n, null, alternative, variance, cor_z, alpha_nom, a, c_
                                   cor_z=cor_z, a=a, c_x=c_x, c_y=c_y, n_y=n_y, crit=crit)$value)
     }
   }
-  max(tII)
+  z_alt <- as.numeric(df[which.max(tII),])
 
-  return(c(tI, max(tII)))
+  return(c(tI, max(tII), crit, z_null, z_alt))
 }
 
 
@@ -41,7 +41,7 @@ opt_crit_value_cp <- function(cor_z, alpha_nom, a, c_x, c_y, n_y, b_null, b_alt)
   crit <- (b_null + b_alt)/2
   error <- 1
   while(error > 10^-5) {
-    z <- z_1_to_maximise(crit, cor_z, alpha_nom, a, c_x, c_y, n_y, b_null)
+    z <- z_1_to_maximise(crit, cor_z, alpha_nom, a, c_x, c_y, n_y, b_null)[[1]]
     new_crit <- crit_to_minimise(z, cor_z, alpha_nom, a, c_x, c_y, n_y, b_null)
     error <- (crit - new_crit)^2
     crit <- new_crit
@@ -50,10 +50,38 @@ opt_crit_value_cp <- function(cor_z, alpha_nom, a, c_x, c_y, n_y, b_null, b_alt)
   return(c(crit, z))
 }
 
+check_tI <- function(v) {
 
-z_1_to_maximise <- function(crit, cor_z, alpha_nom, a, c_x, c_y, n_y, b_null) {
+  df <- z_1_to_maximise(v$crit, v$sigma[1,2], v$alpha_nom, v$a, v$c_x, v$c_y, v$n_y, v$b_null, size = 1000)[[2]]
+  df$i <- 1:nrow(df)
 
-  df <- search_points(a, c_x, c_y, n_y, b_null)
+  p_tI_1 <- ggplot(df, aes(z_1, z_2)) + geom_line(aes(colour = tI)) +
+    geom_point(data = df[which.max(df[,3]),]) +
+    theme_minimal()
+
+  p_tI_2 <- ggplot(df, aes(i, tI)) + geom_line(aes(colour = tI)) +
+    geom_point(data = df[which.max(df[,3]),]) +
+    theme_minimal()
+
+  df_alt <- z_1_to_maximise(v$crit, v$sigma[1,2], v$alpha_nom, v$a, v$c_x, v$c_y, v$n_y, v$b_alt, size = 1000)[[2]]
+  df_alt$tII <- 1 - df_alt$tI
+  df_alt$i <- 1:nrow(df_alt)
+
+  p_tII_1 <- ggplot(df_alt, aes(z_1, z_2)) + geom_line(aes(colour = tII)) +
+    geom_point(data = df_alt[which.max(df_alt[,4]),]) +
+    theme_minimal()
+
+  p_tII_2 <- ggplot(df_alt, aes(i, tII)) + geom_line(aes(colour = tII)) +
+    geom_point(data = df_alt[which.max(df_alt[,4]),]) +
+    theme_minimal()
+
+  return(list(p_tI_1, p_tI_2, p_tII_1, p_tII_2))
+}
+
+
+z_1_to_maximise <- function(crit, cor_z, alpha_nom, a, c_x, c_y, n_y, b_null, size = 100) {
+
+  df <- search_points(a, c_x, c_y, n_y, b_null, size)
 
   tI <- NULL
   if(a >= 0){
@@ -71,7 +99,7 @@ z_1_to_maximise <- function(crit, cor_z, alpha_nom, a, c_x, c_y, n_y, b_null) {
   }
 
   z <- as.numeric(df[which.max(tI),])
-  return(z)
+  return(list(z, tIs = cbind(df, tI)))
 }
 
 crit_to_minimise <- function(z, cor_z, alpha_nom, a, c_x, c_y, n_y, b_null) {
