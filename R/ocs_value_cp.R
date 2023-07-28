@@ -209,7 +209,7 @@ search_points <- function(a, c_x, c_y, n_y, b, size = 100) {
     crit_y <- c_y - s*(c_y - (w*c_y - c_x)/(w + w*a*c_x))
 
     df <- data.frame(z_1 = z_1, z_2 = z_2)
-    df <- df[df$z_1 <= c_x & df$z_2 <= c_y & df$z_2 >= n_y,]
+    df <- df[df$z_1 <= c_x & df$z_2 <= c_y,]
 
     df <- rbind(data.frame(z_1 = rep(b, size), z_2 = seq(15, max(c_y, crit_y), length.out = size)),
                 df,

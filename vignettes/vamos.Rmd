@@ -147,7 +147,7 @@ p1 + p2 + plot_annotation(tag_levels = 'i')
 
 ```
 
-# Value-based hypotheses
+## Value-based hypotheses
 
 For both the multiple and co-primary approaches, the composite hypotheses imply extreme preference relations between the two outcomes. For example, in the co-primary case both $(z_1, z_2) = (0, 0)$ and $(z_1, z_2) = (5, 0)$ are considered to be in the null hypothesis, meaning that we wish to constrain the probability of concluding in favour of the experimental treatment to the same level at both points. Whenever there is some kind of trade-off between the two outcomes, we might expect the latter point to be preferred to the former and the permitted probability of a positive result relaxed correspondingly. 
 
@@ -177,16 +177,16 @@ $$
 To transform this into a hypothesis, we specific some value $b$ which denotes the shift from $z_1 = 0$ to $z_1 = b$. This gives a shift parameter 
 
 $$
-s = \frac{c_1 - b}{b}
+s = \frac{c_1 - b}{c_1}
 $$
 
-such that we transform our variables from $z_i$ to 
+(where $c_1 > 0$) such that we transform our variables from $z_i$ to 
 
 $$
 z_i' = c_i - \frac{c_i - z_i}{s}.
 $$
 
-Thus, within the trade-off region the hypothesis boundary is given by
+This corresponds to taking the canonical hypothesis boundary intersecting the point $(0, c_2)$ and then shrinking it towards / expanding it away from the point $(c_1, c_2)$ to make it instead intersect the point $(b, c_x)$. Thus, within the trade-off region the hypothesis boundary is given by
 
 $$
 c_2 - \frac{c_2 - z_2}{s} = \frac{wc_2 - (c_1 - [c_1 - z_1]/s)}{w + a w (c_1 - [c_1 - z_1]/s)},
@@ -250,10 +250,6 @@ Given we are working on the standardised effect scale, the above assumptions imp
 ```{r}
 hyp_plot(a = 1, c_x = 6, c_y = 9, n_y = -2, b_alt = 2)
 ```
-```{r}
-hyp_plot(a = -5, c_x = -7, c_y = -7, n_y = 0, b_alt = 2.4)
-hyp_plot(a = 5, c_x = 7, c_y = 9, n_y = 0, b_alt = 2.4)
-```
 
 A value-based testing procedure then decides in favour of the experimental treatment when
 
@@ -278,19 +274,22 @@ $$
 
 Note that we are assuming a large sample setting such that the covariance matrix of the patient outcomes can be estimated with sufficient precision to let us plug the estimates in and then find the smallest $s_{crit}$ which satisfies the type I error constraint, ensuring that we can always control type I error. As usual, the power of the trial will rely on an accurate prior estimate of the covariance matrix.
 
+## Results
+
 ```{r}
 library(mvtnorm)
 
-a <- 1
-c <- 7
+a <- -1
+c <- -7
 sigma <- matrix(c(1, 0, 0, 1), ncol = 2)
 cor_z <- sigma[1,2]
 variance <- sigma[1,1]
 alpha_nom <- 0.05
-null <- 0
+null <- 0.0
 alternative <- 0.3
 
-vamos(null, alternative, sigma, alpha_nom, beta_nom=0.2, "value", 1000, .a=a, .c_x=c, .c_y=c, .n_y=0)
+vamos(null, alternative, sigma, alpha_nom, beta_nom=0.2, a=a, c_x=c, c_y=c, n_y=0)
+v$n
 
-ocs_value_cp_wrong(260, null, alternative, cor_z, alpha_nom, variance, a, c_x = c, c_y = c, n_y = 0)
+ocs_value_cp_wrong(145, null, alternative, cor_z, alpha_nom, variance, a, c_x = c, c_y = c, n_y = 0)
 ```
