@@ -2,7 +2,7 @@
 title: "vamos - research report"
 output: rmarkdown::html_vignette
 vignette: >
-  %\VignetteIndexEntry{research_report}
+  %\VignetteIndexEntry{vamos - research report}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---
