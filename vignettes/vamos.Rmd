@@ -1,5 +1,5 @@
 ---
-title: "vamos - reseacrh report"
+title: "vamos - research report"
 output: rmarkdown::html_vignette
 vignette: >
   %\VignetteIndexEntry{research_report}
@@ -15,7 +15,7 @@ knitr::opts_chunk$set(
 ```
 
 ```{r setup}
-#library(vamos)
+library(vamos)
 library(ggplot2)
 library(patchwork)
 ```
@@ -241,13 +241,15 @@ hyp_plot <- function(a, c_x, c_y = c_x, n_y = 0, b_null = 0, b_alt = 2.486475) {
 }
 
 p1 <- hyp_plot(0.2, 7); p2 <- hyp_plot(1, 7); p3 <- hyp_plot(5, 7); p4 <- hyp_plot(20, 7)
+```
 
+```{r, echo = FALSE, fig.height = 5, fig.width = 7, fig.align = "center"}
 (p1 + p2) / (p3 + p4) + plot_layout(guides = "collect")
 ```
 
 Given we are working on the standardised effect scale, the above assumptions implying a symmetry between the two outcomes may well be reasonable. But we can adjust the relative weighting and hypotheses to specify other more general problems, e.g. when we have a superiority and a non-inferiority outcome with the former considered more important than the latter:
 
-```{r}
+```{r, echo = FALSE, fig.height = 5, fig.width = 7, fig.align = "center"}
 hyp_plot(a = 1, c_x = 6, c_y = 9, n_y = -2, b_alt = 2)
 ```
 
@@ -291,5 +293,5 @@ alternative <- 0.3
 v <- vamos(null, alternative, sigma, alpha_nom, beta_nom=0.2, a=a, c_x=c, c_y=c, n_y=0)
 v$n
 
-ocs_value_cp_wrong(145, null, alternative, cor_z, alpha_nom, variance, a, c_x = c, c_y = c, n_y = 0)
+#ocs_value_cp_wrong(145, null, alternative, cor_z, alpha_nom, variance, a, c_x = c, c_y = c, n_y = 0)
 ```
