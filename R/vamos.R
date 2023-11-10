@@ -1,7 +1,6 @@
-
+# Constructor
 new_vamos <- function(n, null, alternative, sigma, alpha_nom, beta_nom,
-                      a, c_x, c_y, n_y, sol, b_null, b_alt) {
-  # Constuctor
+                      a, c_x, c_y, b_y, sol, b_null, b_alt) {
 
   structure(list(n = n, null = null, alternative = alternative, sigma = sigma,
                  alpha_nom = alpha_nom, beta_nom = beta_nom,
@@ -11,24 +10,28 @@ new_vamos <- function(n, null, alternative, sigma, alpha_nom, beta_nom,
             class = "vamos")
 }
 
+# Helper
 #' @export
 vamos <- function(null = 0, alternative, sigma = matrix(c(1, 0, 0, 1), nrow = 2),
                   alpha_nom = 0.05, beta_nom = 0.2,
                   a = 1, c_x = 5, c_y = c_x, n_y = 0,
                   max_n = 1000) {
-  # Helper
 
+  # Find the optimal design
   r <- optimise_n(null, alternative, sigma, alpha_nom, beta_nom, max_n,
-                  a, c_x, c_y, n_y)
+                  a, c_x, c_y, b_y)
 
+  # Extract the sample size r[4], and the points where type I and type II
+  # are maximised, r[5:6] and r[7:8]
   sol <- r[4:8]
 
+  # Get the null and alternative marginal hypotheses for the x variable on
+  # the z score scale (for plotting)
   b_null <- null/sqrt(2*sigma[1,1]/r[1])
   b_alt <- alternative/sqrt(2*sigma[1,1]/r[1])
 
   return(new_vamos(n=r[1], null, alternative, sigma, alpha_nom, beta_nom,
-                   a, c_x, c_y, n_y, sol, b_null, b_alt))
-
+                   a, c_x, c_y, b_y, sol, b_null, b_alt))
 }
 
 

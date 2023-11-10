@@ -1,10 +1,14 @@
 
 ocs_value_cp <- function(n, null, alternative, variance, cor_z, alpha_nom, a, c_x, c_y, n_y) {
 
-  # Optimal OCs for value-based approach of the co-primary nature
+  # For a given sample size, find the critical value which controls type I
+  # error and find the corresponding worst case type II error
+
+  # Tranlate hypothesis parameters to the z scale
   b_null <- null/sqrt(2*variance/n)
   b_alt <- alternative/sqrt(2*variance/n)
 
+  # Find the optimal critical value
   r <- opt_crit_value_cp(cor_z, alpha_nom, a, c_x, c_y, n_y, b_null, b_alt)
   crit <- r[1]
   z_null <- r[2:3]
@@ -49,35 +53,6 @@ opt_crit_value_cp <- function(cor_z, alpha_nom, a, c_x, c_y, n_y, b_null, b_alt)
 
   return(c(crit, z))
 }
-
-check_tI <- function(v) {
-
-  df <- z_1_to_maximise(v$crit, v$sigma[1,2], v$alpha_nom, v$a, v$c_x, v$c_y, v$n_y, v$b_null, size = 1000)[[2]]
-  df$i <- 1:nrow(df)
-
-  p_tI_1 <- ggplot(df, aes(z_1, z_2)) + geom_line(aes(colour = tI)) +
-    geom_point(data = df[which.max(df[,3]),]) +
-    theme_minimal()
-
-  p_tI_2 <- ggplot(df, aes(i, tI)) + geom_line(aes(colour = tI)) +
-    geom_point(data = df[which.max(df[,3]),]) +
-    theme_minimal()
-
-  df_alt <- z_1_to_maximise(v$crit, v$sigma[1,2], v$alpha_nom, v$a, v$c_x, v$c_y, v$n_y, v$b_alt, size = 1000)[[2]]
-  df_alt$tII <- 1 - df_alt$tI
-  df_alt$i <- 1:nrow(df_alt)
-
-  p_tII_1 <- ggplot(df_alt, aes(z_1, z_2)) + geom_line(aes(colour = tII)) +
-    geom_point(data = df_alt[which.max(df_alt[,4]),]) +
-    theme_minimal()
-
-  p_tII_2 <- ggplot(df_alt, aes(i, tII)) + geom_line(aes(colour = tII)) +
-    geom_point(data = df_alt[which.max(df_alt[,4]),]) +
-    theme_minimal()
-
-  return(list(p_tI_1, p_tI_2, p_tII_1, p_tII_2))
-}
-
 
 z_1_to_maximise <- function(crit, cor_z, alpha_nom, a, c_x, c_y, n_y, b_null, size = 100) {
 
@@ -161,6 +136,35 @@ int_cond_z_1_cp <- function(z_1, mean, cor_z, a, c_x, c_y, n_y, crit) {
 
 
 
+check_tI <- function(v) {
+
+  df <- z_1_to_maximise(v$crit, v$sigma[1,2], v$alpha_nom, v$a, v$c_x, v$c_y, v$n_y, v$b_null, size = 1000)[[2]]
+  df$i <- 1:nrow(df)
+
+  p_tI_1 <- ggplot(df, aes(z_1, z_2)) + geom_line(aes(colour = tI)) +
+    geom_point(data = df[which.max(df[,3]),]) +
+    theme_minimal()
+
+  p_tI_2 <- ggplot(df, aes(i, tI)) + geom_line(aes(colour = tI)) +
+    geom_point(data = df[which.max(df[,3]),]) +
+    theme_minimal()
+
+  df_alt <- z_1_to_maximise(v$crit, v$sigma[1,2], v$alpha_nom, v$a, v$c_x, v$c_y, v$n_y, v$b_alt, size = 1000)[[2]]
+  df_alt$tII <- 1 - df_alt$tI
+  df_alt$i <- 1:nrow(df_alt)
+
+  p_tII_1 <- ggplot(df_alt, aes(z_1, z_2)) + geom_line(aes(colour = tII)) +
+    geom_point(data = df_alt[which.max(df_alt[,4]),]) +
+    theme_minimal()
+
+  p_tII_2 <- ggplot(df_alt, aes(i, tII)) + geom_line(aes(colour = tII)) +
+    geom_point(data = df_alt[which.max(df_alt[,4]),]) +
+    theme_minimal()
+
+  return(list(p_tI_1, p_tI_2, p_tII_1, p_tII_2))
+}
+
+
 ocs_value_cp_wrong <- function(n, null, alternative, cor_z, alpha_nom, variance, a, c_x, c_y, n_y) {
 
   # Optimal OCs for value-based hypotheses of the co-primary nature, but when
@@ -219,45 +223,6 @@ value_cp_wrong_obj <- function(crit, cor_z, alpha_nom, a, c_x, c_y, n_y, b_null)
 
   # Return the penalised objective to be minimised
   return((max(tI)  - alpha_nom)^2)
-}
-
-
-search_points <- function(a, c_x, c_y, n_y, b, size = 100) {
-
-  # Build a data frame of points along a hypothesis boundary defined by b, the marginal
-  # alternative for the x outcome
-  w <- (c_x)/(c_y - n_y - a*c_x*n_y)
-  s <- (c_x - b)/c_x
-
-  # Two cases, co_primary and multiple endpoints
-  if(a >= 0){
-    z_1 <- (seq(sqrt(0.001), sqrt(10), length.out = size))^2 + b
-    z_2 <- c_y - s*(c_y - (w*c_y - (c_x - (c_x - z_1)/s))/(w + w*a*(c_x - (c_x - z_1)/s)))
-
-    crit_y <- c_y - s*(c_y - (w*c_y - c_x)/(w + w*a*c_x))
-
-    df <- data.frame(z_1 = z_1, z_2 = z_2)
-    df <- df[df$z_1 <= c_x & df$z_2 <= c_y,]
-
-    df <- rbind(data.frame(z_1 = rep(b, size), z_2 = seq(15, max(c_y, crit_y), length.out = size)),
-                df,
-                data.frame(z_1 = seq(max(c_x, b), 15, length.out = size), z_2 = rep(crit_y, size)))
-  } else {
-    z_1 <- -(seq(sqrt(0.001), sqrt(10), length.out = size))^2 + b
-    z_2 <- c_y - s*(c_y - (w*c_y - (c_x - (c_x - z_1)/s))/(w + w*a*(c_x - (c_x - z_1)/s)))
-
-    crit_y <- c_y - s*(c_y - (w*c_y - c_x)/(w + w*a*c_x))
-
-    df <- data.frame(z_1 = z_1, z_2 = z_2)
-    df <- df[df$z_1 >= c_x & df$z_2 >= c_y,]
-
-    df <- rbind(data.frame(z_1 = rep(b, size), z_2 = seq(-15, min(c_y, crit_y), length.out = size)),
-                df,
-                data.frame(z_1 = seq(min(c_x, b), -15, length.out = size), z_2 = rep(crit_y, size)))
-
-  }
-
-  return(df)
 }
 
 
