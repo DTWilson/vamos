@@ -141,98 +141,107 @@ p2 <- ggplot(df, aes(z_1, z_2)) + geom_point(alpha = 0) +
 p1 + p2 + plot_annotation(tag_levels = 'i')
 ```
 
-## Implementation
-
-```{r}
-
-```
+Since co-primary and multiple endpoints are not especially descriptive terms, we will henceforth refer to these as conjunctive and disjunctive tests respectively, following Senn2007.
 
 ## Value-based hypotheses
 
-For both the multiple and co-primary approaches, the composite hypotheses imply extreme preference relations between the two outcomes. For example, in the co-primary case both $(z_1, z_2) = (0, 0)$ and $(z_1, z_2) = (5, 0)$ are considered to be in the null hypothesis, meaning that we wish to constrain the probability of concluding in favour of the experimental treatment to the same level at both points. Whenever there is some kind of trade-off between the two outcomes, we might expect the latter point to be preferred to the former and the permitted probability of a positive result relaxed correspondingly. 
+For both the conjunctive and disjunctive approaches, the composite hypotheses imply extreme preference relations between the two outcomes. For example, in the conjunctive case both $(z_1, z_2) = (0, 0)$ and $(z_1, z_2) = (5, 0)$ are considered to be in the null hypothesis, meaning that we wish to constrain the probability of concluding in favour of the experimental treatment to the same level at both points. Whenever there is some kind of trade-off between the two outcomes, we might expect the latter point to be preferred to the former and the permitted probability of a positive result relaxed correspondingly. 
 
 To allow for these kind of preferences we can change the way we set up our hypotheses. We propose to construct these by first choosing lower and upper limits beyond which trade-offs are not considered, denoted $c_1$ and $c_2$. We then define a value contour which goes through the point $(0, c_2)$  use this to construct our null and alternative hypotheses by shrinking or expanding this contour with respect to the point $(c_1, c_2)$.
 
 The types of contours we consider are of the form
 
 $$
-z_1 + wz_2 + a z_1 w z_2 = C.
+z_1 + wz_2 + a z_1 w z_2 = k,
 $$
 
-The parameter $W$ allows for a relative preference for one endpoint over the other, which the parameter $a$ dictates the nature of the trade-off. With $a = 0$ we will have a linear trade-off; as $a$ increases we will approach the sharp hypothesis illustrated in the co-primary case above. For the canonical contour we note that the value will be equal at points $(0, c_2)$ and $(c_1, n_2)$ (for some choice of $n_2$) and so
+for some constant $k$. The parameter $W$ allows for a relative preference for one endpoint over the other, while the parameter $a$ dictates the nature of the trade-off. With $a = 0$ we will have a linear trade-off; as $a$ increases we will approach the sharp hypothesis illustrated in the conjunctive case above. We will construct hypotheses by first defining the contour which passes through the point $(z_1, z_2) = (0, c_2)$, and then shrink or expand this line with respect to the point $(c_1, c_2)$.
+
+In addition to the parameters $c_1, c_2$ and $a$, the final input parameter we need is denoted $b_2$ and is chosen such that we have the same value at $(0, c_2)$ and $(c_1, b_2)$. Then we can get the weight $w$:
 
 $$
-\begin{align}
-w c_2 &=  c_1 + w n_2 + a c_1 w n_2 \\
-w &= \frac{c_1}{c_2 - n_2 - a c_1 n_2}.
-\end{align}
+w = c_1/(c_2 - b_2 - ab_2c_1).
 $$
-
-This contour is then described by
+Now, since we want $z_2 = 0$ at the point $z_2 = c_2$, we have $k = wc_2$. Our canonical contour is then
 
 $$
 z_2 = \frac{w c_2 - z_1} {w + a w z_1}.
 $$
 
-To transform this into a hypothesis, we specific some value $b$ which denotes the shift from $z_1 = 0$ to $z_1 = b$. This gives a shift parameter 
+To transform this into a hypothesis, we specific some value $b_1$ such that the hypothesis should pass through the point $(b_1, c_2)$. Our hypothesis boundary is then given by mapping the canonical contour to
 
 $$
-s = \frac{c_1 - b}{c_1}
+s \left( \begin{bmatrix} 
+z_1 \\ 
+z_2 \\ 
+\end{bmatrix}  - 
+\begin{bmatrix} 
+c_1 \\ 
+c_2 \\ 
+\end{bmatrix}
+\right) + 
+\begin{bmatrix} 
+c_1 \\ 
+c_2 \\ 
+\end{bmatrix},
 $$
 
-(where $c_1 > 0$) such that we transform our variables from $z_i$ to 
+where
 
 $$
-z_i' = c_i - \frac{c_i - z_i}{s}.
+s = \frac{c_1 - b}{c_1}.
 $$
 
-This corresponds to taking the canonical hypothesis boundary intersecting the point $(0, c_2)$ and then shrinking it towards / expanding it away from the point $(c_1, c_2)$ to make it instead intersect the point $(b, c_x)$. Thus, within the trade-off region the hypothesis boundary is given by
-
-$$
-c_2 - \frac{c_2 - z_2}{s} = \frac{wc_2 - (c_1 - [c_1 - z_1]/s)}{w + a w (c_1 - [c_1 - z_1]/s)},
-$$
-
-while the boundaries become
-
-$$
-c_1 - \frac{c_1 - z_1}{s} < 0 ~\text{ and }~ c_2 - \frac{c_2 - z_2}{s} < 0 < n_2.
-$$
-
-For example, let $c_1 = c_2 = 7$ with $n_y = 0$, $b_{null} = 0$ and $b_{alt} = 2.49$. Consider $a = 0.5, 1, 5, 100$. These produce the following hypotheses:
+For example, let $c_1 = c_2 = 7$ with $n_y = 0$, $b_{null} = 0$ and $b_{alt} = 2.49$. Consider $a = 0.2, 1, 5, 20$. These produce the following hypotheses:
 
 ```{r}
-hyp_plot <- function(a, c_x, c_y = c_x, n_y = 0, b_null = 0, b_alt = 2.486475) {
+hyp_plot <- function(a, c_x, c_y = c_x, b_y = 0, b_null = 0, b_alt = 2.486475) {
+  
+  
+  if(a >= 0){
+    # co-primary
+    x_up <- c_x + 2; y_up <- c_y + 2
+    x_lo <- b_null - 2; y_lo <- b_y -2
+  } else {
+    # mutliple primary
+    x_up <- b_alt + 2; y_up <- b_y + 2
+    x_lo <- c_x - 2; y_lo <- c_y - 2
+  }
   
   # Grid of points for plotting
-  df <- expand.grid(x = seq(-5,15,0.3),
-                 y = seq(-5,15,0.3))
+  df <- expand.grid(x = seq(x_lo, x_up, 0.3),
+                 y = seq(y_lo, y_up, 0.3))
   
   # Get weight for value function
-  w <- (c_x)/(c_y - n_y - a*c_x*n_y)
+  w <- (c_x)/(c_y - b_y - a*c_x*b_y)
   
-  # Get the required shift parameters to transform the basic hypothesis (set up
-  # assuming n_x = 0) to null and alternatives
-  s_n <- (c_x - b_null)/c_x
-  s_a <- (c_x - b_alt)/c_x
+  # Get the canonical hypothesis passing through (0, c_y)
+  df <- data.frame(x = seq(0, c_x, length.out = 100))
+  df$y <- (w*c_y - df$x)/(w + a*w*df$x)
+
+  # Null
+  s <- (c_x - b_null)/c_x
+  df_null <- as.data.frame(t( s*(t(df) - c(c_x, c_y)) + c(c_x, c_y) ))
   
-  # Null hypothesis
-  x_n <- seq(b_null, c_x, length.out = 100)
-  y_n <- c_y - s_n*(c_y - (w*c_y - (c_x - (c_x - x_n)/s_n))/(w + w*a*(c_x - (c_x - x_n)/s_n)))
+  # Alternative
+  s <- (c_x - b_alt)/c_x
+  df_alt <- as.data.frame(t( s*(t(df) - c(c_x, c_y)) + c(c_x, c_y) ))
   
-  # Alternative hypothesis
-  x_a <- seq(b_alt, c_x, length.out = 100)
-  y_a <- c_y - s_a*(c_y - (w*c_y - (c_x - (c_x - x_a)/s_a))/(w + w*a*(c_x - (c_x - x_a)/s_a)))
-  
-  df <- data.frame(x = c(x_n, x_a),
-                   y = c(y_n, y_a),
-                   h = rep(c("null", "alt"), each = 100))
+  df <- rbind(df_null, df_alt)
+  df$h <- rep(c("null", "alt"), each = 100)
+
   
   ggplot(df, aes(x, y, colour = h)) + geom_line() +
-    xlim(c(-5, 15)) + ylim(c(-5, 15)) +
-    geom_segment(aes(x = b_null, xend = b_null, y =  15, yend = c_y, colour = "null")) +
-    geom_segment(aes(x = c_x, xend = 15, y =  n_y, yend = n_y, colour = "null")) +
-    geom_segment(aes(x = b_alt, xend = b_alt, y =  15, yend = c_y, colour = "alt")) +
-    geom_segment(aes(x = c_x, xend = 15, y =  y_a[length(y_a)], yend = y_a[length(y_a)], colour = "alt")) +
+    xlim(c(x_lo, x_up)) + ylim(c(y_lo, y_up)) +
+    
+    # Straight lines for the null
+    geom_segment(aes(x = b_null, xend = b_null, y = (a >= 0)*y_up + (a < 0)*y_lo, yend = c_y, colour = "null")) +
+    geom_segment(aes(x = c_x, xend = (a >= 0)*x_up + (a < 0)*x_lo, y =  df_null$y[nrow(df_null)-1], yend = df_null$y[nrow(df_null)-1], colour = "null")) +
+      
+    # Straight lines for the alternative
+    geom_segment(aes(x = b_alt, xend = b_alt, y = (a >= 0)*y_up + (a < 0)*y_lo, yend = c_y, colour = "alt")) +
+    geom_segment(aes(x = c_x, xend = (a >= 0)*x_up + (a < 0)*x_lo, y =  df_alt$y[nrow(df_alt)-1], yend = df_alt$y[nrow(df_alt)-1], colour = "alt")) +
+    
     scale_color_manual(name = "Hypothesis", breaks = c("null", "alt"), 
                        values = c(2,4), labels = c("N", "A")) +
     xlab(expression(z[1])) + ylab(expression(z[2])) +
@@ -250,31 +259,17 @@ p1 <- hyp_plot(0.2, 7); p2 <- hyp_plot(1, 7); p3 <- hyp_plot(5, 7); p4 <- hyp_pl
 Given we are working on the standardised effect scale, the above assumptions implying a symmetry between the two outcomes may well be reasonable. But we can adjust the relative weighting and hypotheses to specify other more general problems, e.g. when we have a superiority and a non-inferiority outcome with the former considered more important than the latter:
 
 ```{r, echo = FALSE, fig.height = 5, fig.width = 7, fig.align = "center"}
-hyp_plot(a = 1, c_x = 6, c_y = 9, n_y = -2, b_alt = 2)
+hyp_plot(a = 1, c_x = 6, c_y = 9, b_y = -2, b_null = 0, b_alt = 2)
 ```
 
-A value-based testing procedure then decides in favour of the experimental treatment when
 
-$$
-C = \hat{z}_2 > \frac{c - (\hat{z}_1 - s_{crit})}{1 + a(\hat{z}_1 - s_{crit})} + s_{crit} \text{ and } \hat{z}_1 > b_{crit} \text{ and } \hat{z}_2 > b_{crit},
-$$
+We can create similar hypotheses for the case of multiple primary outcomes. For example,
 
-where 
+```{r, echo = FALSE, fig.height = 5, fig.width = 7, fig.align = "center"}
+hyp_plot(a = -3, c_x = -5, c_y = -5, b_y = -1, b_null = -2, b_alt = 0)
+```
 
-$$
-b_{crit} = \frac{s_{crit}}{1 + a (c - s_{crit})} + s_{crit},
-$$
-
-for some choice of critical value $s_{crit}$. Our type I and II error rates are then
-
-$$
-\begin{align}
-\max_{z_1, z_2} & ~ Pr\left(C ~|~ z_2 < \frac{c - z_1}{1 + az_1} \cup z_1 < 0 \cup z_2 < 0 \right) \\
-\max_{z_1, z_2} & ~ Pr\left(C^c  ~|~ z_2 > \frac{c - (z_1 - s)}{1 + a(z_1 - s)} + s \cap z_1 > b \cap z_2 > b \right).
-\end{align}
-$$
-
-Note that we are assuming a large sample setting such that the covariance matrix of the patient outcomes can be estimated with sufficient precision to let us plug the estimates in and then find the smallest $s_{crit}$ which satisfies the type I error constraint, ensuring that we can always control type I error. As usual, the power of the trial will rely on an accurate prior estimate of the covariance matrix.
+A value-based testing procedure can proceed by using the same procedure as for creating hypothesis boundaries to create a critical region. This critical region will be determined by one parameter, which we can choose to ensure type I error rate is crontrolled everywhere over the null hypothesis boundary. In doing so, we will assume that we are working with large samples such that the covariance matrix of the patient outcomes can be estimated with sufficient precision to let us plug the estimates when calculating type I error rates. As usual, the power of the trial will rely on an accurate prior estimate of the covariance matrix.
 
 ## Results
 
@@ -295,3 +290,4 @@ v$n
 
 #ocs_value_cp_wrong(145, null, alternative, cor_z, alpha_nom, variance, a, c_x = c, c_y = c, n_y = 0)
 ```
+
