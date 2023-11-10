@@ -197,7 +197,6 @@ For example, let $c_1 = c_2 = 7$ with $n_y = 0$, $b_{null} = 0$ and $b_{alt} = 2
 ```{r}
 hyp_plot <- function(a, c_x, c_y = c_x, b_y = 0, b_null = 0, b_alt = 2.486475) {
   
-  
   if(a >= 0){
     # co-primary
     x_up <- c_x + 2; y_up <- c_y + 2
