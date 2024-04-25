@@ -4,7 +4,7 @@ ocs_value_cp <- function(n, null, alternative, variance, cor_z, alpha_nom, a, c_
   # For a given sample size, find the critical value which controls type I
   # error and find the corresponding worst case type II error
 
-  # Tranlate hypothesis parameters to the z scale
+  # Translate hypothesis parameters to the z scale
   b_null <- null/sqrt(2*variance/n)
   b_alt <- alternative/sqrt(2*variance/n)
 
@@ -13,11 +13,12 @@ ocs_value_cp <- function(n, null, alternative, variance, cor_z, alpha_nom, a, c_
   crit <- r[1]
   z_null <- r[2:3]
 
+  # Get the corresponding tI error rate, reversing the transformation of the objective function
   tI <- sqrt(value_cp_alpha(crit, z_null, cor_z, alpha_nom, a, c_x, c_y, n_y, b_null)) + alpha_nom
 
   df <- search_points(a, c_x, c_y, n_y, b_alt)
 
-  # Run a a simple exhaustive search
+  # Run a simple exhaustive search
   tII <- NULL
   if(a >= 0) {
     for(i in 1:nrow(df)){
@@ -42,10 +43,13 @@ ocs_value_cp <- function(n, null, alternative, variance, cor_z, alpha_nom, a, c_
 
 opt_crit_value_cp <- function(cor_z, alpha_nom, a, c_x, c_y, n_y, b_null, b_alt) {
 
+  # A starting critical value mid-way between the hypotheses
   crit <- (b_null + b_alt)/2
   error <- 1
   while(error > 10^-5) {
+    # For the current critical value, find the point where tI error is maximised
     z <- z_1_to_maximise(crit, cor_z, alpha_nom, a, c_x, c_y, n_y, b_null)[[1]]
+    #
     new_crit <- crit_to_minimise(z, cor_z, alpha_nom, a, c_x, c_y, n_y, b_null)
     error <- (crit - new_crit)^2
     crit <- new_crit
@@ -56,8 +60,11 @@ opt_crit_value_cp <- function(cor_z, alpha_nom, a, c_x, c_y, n_y, b_null, b_alt)
 
 z_1_to_maximise <- function(crit, cor_z, alpha_nom, a, c_x, c_y, n_y, b_null, size = 100) {
 
+  # A set of points in the parameter space on the null boundary
   df <- search_points(a, c_x, c_y, n_y, b_null, size)
 
+  # At each point, calculate the tI error by integrating over the marginal
+  # distribution in one dimension, calculating the conditional probs wrt to other
   tI <- NULL
   if(a >= 0){
     for(i in 1:nrow(df)){
@@ -73,12 +80,15 @@ z_1_to_maximise <- function(crit, cor_z, alpha_nom, a, c_x, c_y, n_y, b_null, si
     }
   }
 
+  # Find the point where tI error is maximised
   z <- as.numeric(df[which.max(tI),])
   return(list(z, tIs = cbind(df, tI)))
 }
 
 crit_to_minimise <- function(z, cor_z, alpha_nom, a, c_x, c_y, n_y, b_null) {
 
+  # Optimise the critical value so we get the nominal tI error at a specific
+  # point in the parameter space z
   crit <- optimise(value_cp_alpha, lower = b_null, upper = 15, mean = z,
                    cor_z = cor_z, alpha_nom = alpha_nom,
                    a = a, c_x = c_x, c_y = c_y, n_y = n_y, b_null = b_null)$minimum
@@ -136,7 +146,13 @@ int_cond_z_1_cp <- function(z_1, mean, cor_z, a, c_x, c_y, n_y, crit) {
 
 
 
-check_tI <- function(v) {
+check_errors <- function(v) {
+  # To check our error rates are maximised properly, construct plots of:
+  # - the null boundary with the maximising point
+  # - the type I error over the null boundary; and
+  # - the alternative boundary with the maximising point
+  # - the type II error over the null boundary.
+  # Note, we use a large number of search points here.
 
   df <- z_1_to_maximise(v$crit, v$sigma[1,2], v$alpha_nom, v$a, v$c_x, v$c_y, v$n_y, v$b_null, size = 1000)[[2]]
   df$i <- 1:nrow(df)
