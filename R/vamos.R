@@ -1,10 +1,10 @@
 # Constructor
 new_vamos <- function(n, null, alternative, sigma, alpha_nom, beta_nom,
-                      a, c_x, c_y, b_y, sol, b_null, b_alt) {
+                      a, c_x, c_y, n_y, sol, b_null, b_alt) {
 
   structure(list(n = n, null = null, alternative = alternative, sigma = sigma,
                  alpha_nom = alpha_nom, beta_nom = beta_nom,
-                 a = a, c_x = c_x, c_y = c_y, b_y = b_y,
+                 a = a, c_x = c_x, c_y = c_y, n_y = n_y,
                  crit = sol[1], z_null = sol[2:3], z_alt = sol[4:5],
                  b_null = b_null, b_alt = b_alt),
             class = "vamos")
@@ -19,7 +19,7 @@ vamos <- function(null = 0, alternative, sigma = matrix(c(1, 0, 0, 1), nrow = 2)
 
   # Find the optimal design
   r <- optimise_n(null, alternative, sigma, alpha_nom, beta_nom, max_n,
-                  a, c_x, c_y, b_y)
+                  a, c_x, c_y, n_y)
 
   # Extract the sample size r[4], and the points where type I and type II
   # are maximised, r[5:6] and r[7:8]
@@ -31,7 +31,7 @@ vamos <- function(null = 0, alternative, sigma = matrix(c(1, 0, 0, 1), nrow = 2)
   b_alt <- alternative/sqrt(2*sigma[1,1]/r[1])
 
   return(new_vamos(n=r[1], null, alternative, sigma, alpha_nom, beta_nom,
-                   a, c_x, c_y, b_y, sol, b_null, b_alt))
+                   a, c_x, c_y, n_y, sol, b_null, b_alt))
 }
 
 
@@ -48,8 +48,8 @@ print.vamos <- function(x, ...) {
 plot.vamos <- function(x, y, ...) {
 
   # Get weight for value function
-  a <- x$a; c_x <- x$c_x; c_y <- x$c_y; b_y <- x$b_y
-  w <- (c_x)/(c_y - b_y - a*c_x*b_y)
+  a <- x$a; c_x <- x$c_x; c_y <- x$c_y; n_y <- x$n_y
+  w <- (c_x)/(c_y - n_y - a*c_x*n_y)
 
   b_null <- x$null/sqrt(2*x$sigma[1,1]/x$n)
   b_alt <- x$alternative/sqrt(2*x$sigma[1,1]/x$n)
@@ -58,15 +58,15 @@ plot.vamos <- function(x, y, ...) {
   if(a >= 0){
     # co-primary
     x_up <- c_x + 2; y_up <- c_y + 2
-    x_lo <- b_null - 2; y_lo <- b_y -2
+    x_lo <- b_null - 2; y_lo <- n_y -2
   } else {
     # mutliple primary
-    x_up <- b_alt + 2; y_up <- b_y + 2
+    x_up <- b_alt + 2; y_up <- n_y + 2
     x_lo <- c_x - 2; y_lo <- c_y - 2
   }
 
   # Get weight for value function
-  w <- (c_x)/(c_y - b_y - a*c_x*b_y)
+  w <- (c_x)/(c_y - n_y - a*c_x*n_y)
 
   # Get the canonical hypothesis passing through (0, c_y)
   df <- data.frame(x = seq(0, c_x, length.out = 100))
@@ -101,8 +101,9 @@ plot.vamos <- function(x, y, ...) {
 
     # Critical region
     geom_line(data = df_crit, linetype = 2) +
-    #geom_segment(aes(x = b_alt, xend = b_alt, y = (a >= 0)*y_up + (a < 0)*y_lo, yend = c_y, colour = "alt")) +
-    #geom_segment(aes(x = c_x, xend = (a >= 0)*x_up + (a < 0)*x_lo, y =  df_alt$y[nrow(df_alt)-1], yend = df_alt$y[nrow(df_alt)-1], colour = "alt")) +
+    geom_segment(aes(x = df_crit$x[1], xend = df_crit$x[1], y = (a >= 0)*y_up + (a < 0)*y_lo, yend = c_y), linetype = 2) +
+    geom_segment(aes(x = c_x, xend = (a >= 0)*x_up + (a < 0)*x_lo, y =  df_crit$y[nrow(df_crit)-1], yend = df_crit$y[nrow(df_crit)-1]),
+                 linetype = 2) +
 
     scale_color_manual(name = "Hypothesis", breaks = c("null", "alt"),
                        values = c(2,4), labels = c("N", "A")) +

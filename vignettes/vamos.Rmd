@@ -268,7 +268,7 @@ We can create similar hypotheses for the case of multiple primary outcomes. For 
 hyp_plot(a = -3, c_x = -5, c_y = -5, b_y = -1, b_null = -2, b_alt = 0)
 ```
 
-A value-based testing procedure can proceed by using the same procedure as for creating hypothesis boundaries to create a critical region. This critical region will be determined by one parameter, which we can choose to ensure type I error rate is crontrolled everywhere over the null hypothesis boundary. In doing so, we will assume that we are working with large samples such that the covariance matrix of the patient outcomes can be estimated with sufficient precision to let us plug the estimates when calculating type I error rates. As usual, the power of the trial will rely on an accurate prior estimate of the covariance matrix.
+A value-based testing procedure can proceed by using the same procedure as for creating hypothesis boundaries to create a critical region. This critical region will be determined by one parameter, which we can choose to ensure type I error rate is controlled everywhere over the null hypothesis boundary. In doing so, we will assume that we are working with large samples such that the covariance matrix of the patient outcomes can be estimated with sufficient precision to let us plug in the estimates when calculating type I error rates. As usual, the power of the trial will rely on an accurate prior estimate of the covariance matrix.
 
 ## Results
 
