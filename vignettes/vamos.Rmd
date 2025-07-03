@@ -290,3 +290,68 @@ v$n
 #ocs_value_cp_wrong(145, null, alternative, cor_z, alpha_nom, variance, a, c_x = c, c_y = c, n_y = 0)
 ```
 
+
+## Bayesian
+
+A quick note: if we want to go straight to a Bayesian approach, or to include that as an extension, the following code simulates some bivariate normal data and then does a congugate analysis. The main thing is that it shows a correlation on the outcomes translates to a correlation in the posterior means, and thus supports our general argument still - that uncorrelated endpoints will generally give us lower variance when estimating a joint value or utility.
+
+```{r}
+library(MASS)
+
+# Parameters
+set.seed(123)
+n <- 500
+mu <- c(3, 5)
+Sigma <- matrix(c(2, 0,
+                  0, 2), nrow = 2)
+
+# Simulate data
+data <- mvrnorm(n, mu = mu, Sigma = Sigma)
+
+# Plot
+plot(data, main = "Simulated Bivariate Normal Data",
+     xlab = "X1", ylab = "X2", pch = 19, col = rgb(0, 0, 1, 0.5))
+
+kappa0 <- 1
+m0 <- c(0, 0)
+nu0 <- 4          # must be > dimension - 1 = 1
+S0 <- diag(2)     # prior scale matrix
+
+
+# Sample mean
+xbar <- colMeans(data)
+
+# Scatter matrix
+S <- t(data - matrix(xbar, nrow=n, ncol=2, byrow=TRUE)) %*% (data - matrix(xbar, nrow=n, ncol=2, byrow=TRUE))
+
+# Posterior updates
+kappa_n <- kappa0 + n
+m_n <- (kappa0 * m0 + n * xbar) / kappa_n
+nu_n <- nu0 + n
+
+# Scale matrix update
+delta <- matrix(xbar - m0, ncol=1)
+Sn <- S0 + S + (kappa0 * n / kappa_n) * (delta %*% t(delta))
+
+# Posterior mean
+print(m_n)
+
+# Posterior scale matrix
+print(Sn)
+
+library(MCMCpack)
+
+# Sample Sigma ~ Inverse-Wishart
+Sigma_post <- riwish(nu_n, Sn)
+
+# Sample mu | Sigma
+mu_post <- mvrnorm(1, mu = m_n, Sigma = Sigma_post / kappa_n)
+
+print(mu_post)
+print(Sigma_post)
+
+mu_posts <- mvrnorm(10^3, mu = m_n, Sigma = Sigma_post / kappa_n)
+plot(mu_posts)
+cov(mu_posts)
+cor(mu_posts)
+```
