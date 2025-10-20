@@ -47,7 +47,7 @@ cov(\hat{z}_1, \hat{z}_2) &= cov\left(\frac{\hat{\theta}_1}{\sqrt{2\sigma_1^2/n}
 &= \frac{\tau}{\sigma_1 \sigma_2}
 \end{aligned}
 $$
-where $\tau$ denotes the covariance between an individual's two outcomes. Since the variances are equal to 1, this covariance is also the correlation.
+where $\tau$ denotes the covariance between an individual's two outcomes.
 
 The conditional distribution of $\hat{z_2}$ given $\hat{z_1}$ is normal with mean
 
@@ -110,8 +110,8 @@ p1 <- ggplot(df, aes(z_1, z_2)) + geom_point(alpha = 0) +
   geom_segment(aes(x = -5, y = 2, xend = 2, yend = 2), linetype = 2) +
   geom_segment(aes(x = 2, y = -5, xend = 2, yend = 2), linetype = 2) +
   
-  annotate("text", x = -2, y = -2, label = expression(H[0])) +
-  annotate("text", x = 5, y = 5, label = expression(H[a])) +
+  annotate("text", x = -2, y = -2, label = "H[0]", parse = TRUE) +
+  annotate("text", x = 5, y = 5, label = "H[a]", parse = TRUE) +
   
   xlab(expression(z[1])) + ylab(expression(z[2])) +
   theme_minimal()
@@ -130,8 +130,8 @@ p2 <- ggplot(df, aes(z_1, z_2)) + geom_point(alpha = 0) +
   geom_segment(aes(x = 7, y = 2, xend = 2, yend = 2), linetype = 2) +
   geom_segment(aes(x = 2, y = 7, xend = 2, yend = 2), linetype = 2) +
   
-  annotate("text", x = -2, y = -2, label = expression(H[0])) +
-  annotate("text", x = 5, y = 5, label = expression(H[a])) +
+  annotate("text", x = -2, y = -2, label = "H[0]", parse = TRUE) +
+  annotate("text", x = 5, y = 5, label = "H[a]", parse = TRUE) +
   
   xlab(expression(z[1])) + ylab(expression(z[2])) +
   theme_minimal()  
@@ -147,7 +147,7 @@ Since co-primary and multiple endpoints are not especially descriptive terms, we
 
 For both the conjunctive and disjunctive approaches, the composite hypotheses imply extreme preference relations between the two outcomes. For example, in the conjunctive case both $(z_1, z_2) = (0, 0)$ and $(z_1, z_2) = (5, 0)$ are considered to be in the null hypothesis, meaning that we wish to constrain the probability of concluding in favour of the experimental treatment to the same level at both points. Whenever there is some kind of trade-off between the two outcomes, we might expect the latter point to be preferred to the former and the permitted probability of a positive result relaxed correspondingly. 
 
-To allow for these kind of preferences we can change the way we set up our hypotheses. We propose to construct these by first choosing lower and upper limits beyond which trade-offs are not considered, denoted $c_1$ and $c_2$. We then define a value contour which goes through the point $(0, c_2)$  use this to construct our null and alternative hypotheses by shrinking or expanding this contour with respect to the point $(c_1, c_2)$.
+To allow for these kind of preferences we can change the way we set up our hypotheses. We propose to construct these by first choosing lower and upper limits beyond which trade-offs are not considered, denoted $c_1$ and $c_2$. We then define a value contour which goes through the point $(0, c_2)$ and use this to construct our null and alternative hypotheses by shrinking or expanding this contour with respect to the point $(c_1, c_2)$.
 
 The types of contours we consider are of the form
 
@@ -168,7 +168,7 @@ $$
 z_2 = \frac{w c_2 - z_1} {w + a w z_1}.
 $$
 
-To transform this into a hypothesis, we specific some value $b_1$ such that the hypothesis should pass through the point $(b_1, c_2)$. Our hypothesis boundary is then given by mapping the canonical contour to
+To transform this into a hypothesis, we specify some value $b_1$ such that the hypothesis should pass through the point $(b_1, c_2)$. Our hypothesis boundary is then given by mapping the canonical contour to
 
 $$
 s \left( \begin{bmatrix} 
@@ -268,7 +268,17 @@ We can create similar hypotheses for the case of multiple primary outcomes. For 
 hyp_plot(a = -3, c_x = -5, c_y = -5, b_y = -1, b_null = -2, b_alt = 0)
 ```
 
-A value-based testing procedure can proceed by using the same procedure as for creating hypothesis boundaries to create a critical region. This critical region will be determined by one parameter, which we can choose to ensure type I error rate is controlled everywhere over the null hypothesis boundary. In doing so, we will assume that we are working with large samples such that the covariance matrix of the patient outcomes can be estimated with sufficient precision to let us plug in the estimates when calculating type I error rates. As usual, the power of the trial will rely on an accurate prior estimate of the covariance matrix.
+In principle, a value-based testing procedure can proceed by using the same procedure as for creating hypothesis boundaries to create a critical region. This critical region will be determined by one parameter, which we could choose to control type I error. But type I error control would need us to know the sampling distribution, which we won't - in particular, we won't know the correlation between the endpoints.
+
+## A Bayesian analysis
+
+The unknown correlation, along with all the other model parameters, can be estimated. And if we do this in the Bayesian framework then we aren't reliant on pre-specified rules based on sampling distributions - we can use the posterior instead. We can take the same form of decision rule and look at our posterior over it, deciding in favour if we are more likely to be above than below. We can estimate that probability using the Monte Carlo method. As before the decision rule can be parametrised to make it more or less conservative.
+
+Rather then type I and II error rates, we can instead calculate the conditional probabilities of progression under the null and stopping under the alternative; or equivalent sensitivity and specificity statistics. This will set up future work where we want strict error rate control.
+
+```{r}
+
+```
 
 ## Results
 
