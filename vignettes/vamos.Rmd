@@ -285,7 +285,7 @@ Rather then type I and II error rates, we can instead calculate the conditional 
 ```{r}
 library(mvtnorm)
 
-a <- 1
+a <- 2
 c <- 7
 sigma <- matrix(c(1, 0, 0, 1), ncol = 2)
 cor_z <- sigma[1,2]
@@ -297,7 +297,7 @@ alternative <- 0.3
 v <- vamos(null, alternative, sigma, alpha_nom, beta_nom=0.2, a=a, c_x=c, c_y=c, n_y=0)
 v$n
 
-#ocs_value_cp_wrong(145, null, alternative, cor_z, alpha_nom, variance, a, c_x = c, c_y = c, n_y = 0)
+ocs_value_cp_wrong(151, null, alternative, cor_z, alpha_nom, variance, a, c_x = c, c_y = c, n_y = 0)
 ```
 
 
