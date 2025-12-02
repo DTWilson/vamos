@@ -365,3 +365,261 @@ plot(mu_posts)
 cov(mu_posts)
 cor(mu_posts)
 ```
+
+## BMBR support
+
+Want a simple illustration of how a tree classifier can be used to find which region of the utility space we're in, conditional on the observed data.
+
+First, make up some samples from a posterior:
+
+```{r}
+m0 <- c(0.3, 0.3)
+S0 <- matrix(c(0.3^2, 0.02, 0.02, 0.3^2), ncol = 2)
+
+s <- rmvnorm(10^5, mean = m0, sigma = S0)
+s <- as.data.frame(s)
+```
+
+Now suppose we have a space of utility functions of the form
+$$
+\mu_1 + b\mu_2 + ab\mu_1\mu_2,
+$$
+and want to look at different choices of $a$ and $b$.
+
+```{r}
+set.seed(198274)
+
+exp_u <- function(u_p, s)
+{
+  a <- u_p[1]; b <- u_p[2]
+  mean(s[,1] + b*s[,2] + a*b*s[,1]*s[,2])
+}
+
+u_ps <- expand.grid(a = seq(0,5,0.5),
+                    b = seq(0.8, 1.2, 0.02))
+
+
+u_ps <- data.frame(a = runif(10^3, 0, 5),
+                    b = runif(10^3, 0.8, 1.2))
+
+u_ps$E_u <- apply(u_ps, 1, exp_u, s=s)
+u_ps$g <- factor(u_ps$E_u > 0.9)
+
+ggplot(u_ps, aes(a,b,colour = g)) + geom_point()
+
+t <- tree(g ~ a + b, data = u_ps)
+
+u_ps$c <- t$where
+
+ggplot(u_ps, aes(a,b,colour = as.factor(c))) + geom_point()
+
+rects <- data.frame(xmin = c(0, 1.87, 1.87, 2.18, 1.87, 2.59, 2.59, 2.59, 2.78, 3.2, 3.73),
+                    xmax = c(1.87, 2.18, 2.18, 2.59, 2.59, 2.78))
+
+ggplot(u_ps, aes(a,b,colour = as.factor(c))) + geom_point()
+  
+rects <- data.frame(xmin = c(0, 1.87, 1.87, 2.18, 1.87, 2.59, 2.59, 2.59, 2.59, 2.78, 3.2, 3.73),
+                    xmax = c(1.87, 2.18, 2.18, 2.59, 2.59, 2.78, 2.78, 3.2, 3.73, 5, 3.73, 5),
+                    ymin = c(0.8, 1.14, 1.05, 1.05, 0.8, 1.01, 0.95, 0.87, 0.8, 0.95, 0.87, 0.8),
+                    ymax = c(1.2, 1.2, 1.14, 1.2, 1.05, 1.2, 1.01, 0.95, 0.87, 1.2, 0.95, 0.95),
+                    g = factor(c(0,1,0,1,0,1,0,0,0,1,1,1)))
+ 
+ggplot(rects, aes(xmin=xmin, xmax=xmax, ymin=ymin, ymax=ymax, fill=g)) + geom_rect(colour = "grey50") + 
+  geom_rect(data = rects[c(1,11),], colour = "black", linewidth = 1) +
+  theme_minimal() + ylab("Relative weight, b") + xlab("Interaction, a") +
+  scale_fill_discrete(name="Decision", labels=c("Stop", "Go"))
+```
+
+For our second illustration, we want to show how we can estimate a maximum type I error rate from simulated data. 
+
+
+
+```{r}
+est_post_prob <- function(crit, post_samples, a, c_x, c_y, b_y)
+{
+  #a = 1000; c_x = 6; c_y = 9; b_y = -2
+
+  mu_x <- post_samples[,1]; mu_y <- post_samples[,2]
+
+  # Get weight for value function
+  w <- c_x/(c_y - b_y - a*c_x*b_y)
+
+  # Critical region
+  s <- (c_x - crit)/c_x
+
+  crit_y <- c_y - s*(c_y - (w*c_y - c_x)/(w + w*a*c_x))
+
+  crit_xy <- ifelse(mu_x > c_x, crit_y,
+         ifelse(mu_x > crit, c_y - s*(c_y - (w*c_y - (c_x - (c_x - mu_x)/s))/(w + w*a*(c_x - (c_x - mu_x)/s))),
+                Inf))
+
+  post_samples$go <- mu_y > crit_xy
+
+  return(list(mean(post_samples$go), post_samples))
+}
+
+get_post_samples <- function(prior_point, m0, S0)
+{
+  # sample data
+  s_x <- 1; s_y <-1; tau <- 0.005
+  n <- 150
+  #cov_zs <- tau/(s_x*s_y)
+  #Sig <- matrix(c(1, cov_zs, cov_zs, 1), ncol=2)
+  Sig <- matrix(c(2*s_x^2/n, 2*tau/n, 2*tau/n, 2*s_y^2/n), ncol=2)
+  d <- t(rmvnorm(1, mean = as.numeric(prior_point),
+               sigma = Sig))
+
+  # posterior samples
+  post <- rmvnorm(10^5,
+                  mean = solve(solve(S0) + solve(Sig)) %*% (solve(S0) %*% m0 + solve(Sig) %*% d),
+                  sigma = solve(solve(S0) + solve(Sig)))
+  post
+}
+
+m0 <- c(0.3, 0.3)
+S0 <- matrix(c(0.3^2, 0.02, 0.02, 0.3^2), ncol = 2)
+
+s <- rmvnorm(10^5, mean = m0, sigma = S0)
+s <- as.data.frame(s)
+
+a = 1; c_x = 0.6; c_y = 0.6; b_y = 0
+b_null <- 0; b_alt <- 0.3
+
+nulls <- est_post_prob(crit = b_null, post_samples = s, a, c_x, c_y, b_y)[[2]]
+nulls <- !nulls$go
+
+alts <- est_post_prob(crit = b_alt, post_samples = s, a, c_x, c_y, b_y)[[2]]
+alts <- alts$go
+
+s$h <- ifelse(nulls, "null",
+              ifelse(alts, "alt", "mid"))
+
+crits <- seq(0.05, 0.25, 0.05)
+
+ptm <- proc.time()
+gos <- matrix(rep(0, length(crits)*2), ncol = 2)
+for(i in 1:100){#nrow(s_null)){
+  prior_point <- s_null[i,]
+  post <- get_post_samples(prior_point, m0, S0)
+  go_b <- go_f <- NULL
+  for(j in 1:length(crits)){
+    p_b <- est_post_prob(crits[j], as.data.frame(post), a=a, c_x, c_y, b_y)[[1]]
+    p_f <- est_post_prob(crits[j], as.data.frame(post), a=10^5, c_x, c_y, b_y)[[1]]
+    gos[j,] <- gos[j,] + c(p_b > 0.5, p_f > 0.5)
+  }
+}
+gos <- gos/1000
+
+gos_a <- matrix(rep(0, length(crits)*2), ncol = 2)
+for(i in 1:1000){#nrow(s_alt)){
+  prior_point <- s_alt[i,]
+  post <- get_post_samples(prior_point, m0, S0)
+  go_b <- go_f <- NULL
+  for(j in 1:length(crits)){
+    p_b <- est_post_prob(crits[j], as.data.frame(post), a=a, c_x, c_y, b_y)[[1]]
+    p_f <- est_post_prob(crits[j], as.data.frame(post), a=10^5, c_x, c_y, b_y)[[1]]
+    gos_a[j,] <- gos_a[j,] + c(p_b > 0.5, p_f > 0.5)
+  }
+}
+gos_a <- gos_a/1000
+proc.time() - ptm
+
+df <- data.frame(tI = c(gos[,1], gos[,2]),
+                 tII = c(gos_a[,1], gos_a[,2]),
+                 t = rep(c("b", "f"), each = length(crits)))
+
+ggplot(df, aes(tI, tII, colour = t)) + geom_point()
+```
+
+
+```{r}
+# Prior mean and covariance matrix
+m0 <- c(0.3, 0.3)
+S0 <- matrix(c(0.3^2, 0.02, 0.02, 0.3^2), ncol = 2)
+
+# Sample from the prior
+s <- rmvnorm(10^5, mean = m0, sigma = S0)
+s <- as.data.frame(s)
+
+# Utility function parameter values
+a = 3; c_x = 0.6; c_y = 0.6; b_y = 0
+b_null <- 0; b_alt <- 0.3
+
+# Get the points in our sample in the null space - we can do this by applying
+# our decision rule becuase the rule takes the same form as the hypothesis
+# boundary
+nulls <- est_post_prob(crit = b_null, post_samples = s, a, c_x, c_y, b_y)[[2]]
+nulls <- !nulls$go
+
+# Similarly for the alternative
+alts <- est_post_prob(crit = b_alt, post_samples = s, a, c_x, c_y, b_y)[[2]]
+alts <- alts$go
+
+# Classify all the prior samples by the hypothesis they are in
+s$h <- ifelse(nulls, "null",
+              ifelse(alts, "alt", "mid"))
+
+
+crits <- c(0.1) # seq(0.01, 0.29, 0.025)
+ptm <- proc.time()
+N <- 10^4
+r_b <- matrix(rep(0, N*length(crits)), nrow = N)
+r_f <- matrix(rep(0, N*length(crits)), nrow = N)
+for(i in 1:N){
+  # For each sample
+  prior_point <- s[i,1:2]
+  # Get a sample of the posterior. This involves first simulating some data,
+  # then a conjugate update
+  post <- get_post_samples(prior_point, m0, S0)
+  for(j in 1:length(crits)){
+    # For every candidate decision rule, use the posterior samples to get a 
+    # posterior probability of exceeding the rule
+    p_b <- est_post_prob(crits[j], as.data.frame(post), a=a, c_x, c_y, b_y)[[1]]
+    r_b[i, j] <- log(p_b/(1-p_b))
+  }
+}
+
+rr <- NULL
+for(j in 1:length(crits)){
+  # For every candidate decision rule, 
+  df_b <- data.frame(x = s[1:N, 1],
+                     y = s[1:N, 2],
+                     h = s[1:N, 3],
+                     g = r_b[,j])
+  df_b <- df_b[df_b$g < Inf & df_b$g > -Inf,]
+
+  #fit <- gam(g ~ ti(x) + ti(y) + ti(x,y), family = binomial(), data = df_b)
+  fit <- gam(g ~ ti(x) + ti(y) + ti(x,y), gaussian(link = "identity"), data = df_b)
+
+  #ss <- s[1:N,]
+  ss <- df_b
+  ss$lp <- predict(fit, newdata = ss)
+  ss$p <- 1/(1+exp(-ss$lp))
+
+  ss_n <- ss[ss$h == "null",]
+  #ss_n[which.max(ss_n$p),]
+  tI_b <- max(ss_n$p)
+
+  ss_a <- ss[ss$h == "alt",]
+  #ss_a[which.min(ss_a$p),]
+  tII_b <- 1 - min(ss_a$p)
+}
+
+ss_sub <- rbind(ss_n[1:500,], ss_n[which.max(ss_n$p),])
+
+cont_grid <- expand.grid(x = seq(min(ss_n$x), max(ss_n$x), length.out = 100),
+                         y = seq(min(ss_n$y), max(ss_n$y), length.out = 100))
+cont_grid$lp <- predict(fit, newdata = cont_grid)
+cont_grid$p <- 1/(1+exp(-cont_grid$lp))
+
+ggplot(ss_sub, aes(x, y)) + geom_point(alpha = 0.3, colour = "red") +
+  geom_point(data = ss[ss$h == "alt",][1:500,], alpha = 0.3, colour = "darkgreen") +
+  geom_point(data = ss[ss$h == "mid",][1:500,], alpha = 0.3, colour = "orange") +
+  geom_point(data = ss_sub[501,], size = 2, colour = "black") + 
+  stat_contour(data = cont_grid, aes(z = p)) +
+  theme_minimal()
+
+ggplot(ss_n, aes(x = p)) + geom_histogram(fill = "grey50", colour = "black") +
+  theme_minimal()
+
+```
