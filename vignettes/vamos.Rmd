@@ -373,6 +373,11 @@ Want a simple illustration of how a tree classifier can be used to find which re
 First, make up some samples from a posterior:
 
 ```{r}
+library(ggplot2)
+library(mvtnorm)
+library(tree)
+library(mgcv)
+
 m0 <- c(0.3, 0.3)
 S0 <- matrix(c(0.3^2, 0.02, 0.02, 0.3^2), ncol = 2)
 
@@ -411,12 +416,12 @@ t <- tree(g ~ a + b, data = u_ps)
 
 u_ps$c <- t$where
 
-ggplot(u_ps, aes(a,b,colour = as.factor(c))) + geom_point()
+#ggplot(u_ps, aes(a,b,colour = as.factor(c))) + geom_point()
 
-rects <- data.frame(xmin = c(0, 1.87, 1.87, 2.18, 1.87, 2.59, 2.59, 2.59, 2.78, 3.2, 3.73),
-                    xmax = c(1.87, 2.18, 2.18, 2.59, 2.59, 2.78))
+#rects <- data.frame(xmin = c(0, 1.87, 1.87, 2.18, 1.87, 2.59, 2.59, 2.59, 2.78, 3.2, 3.73),
+#                    xmax = c(1.87, 2.18, 2.18, 2.59, 2.59, 2.78))
 
-ggplot(u_ps, aes(a,b,colour = as.factor(c))) + geom_point()
+#ggplot(u_ps, aes(a,b,colour = as.factor(c))) + geom_point()
   
 rects <- data.frame(xmin = c(0, 1.87, 1.87, 2.18, 1.87, 2.59, 2.59, 2.59, 2.59, 2.78, 3.2, 3.73),
                     xmax = c(1.87, 2.18, 2.18, 2.59, 2.59, 2.78, 2.78, 3.2, 3.73, 5, 3.73, 5),
@@ -437,6 +442,10 @@ For our second illustration, we want to show how we can estimate a maximum type 
 ```{r}
 est_post_prob <- function(crit, post_samples, a, c_x, c_y, b_y)
 {
+  # For a set of posterior samples and a decision rule, return
+  # the posterior probability of being in the "go" region and 
+  # the samples with each one flagged as go or otherwise
+  
   #a = 1000; c_x = 6; c_y = 9; b_y = -2
 
   mu_x <- post_samples[,1]; mu_y <- post_samples[,2]
@@ -460,6 +469,9 @@ est_post_prob <- function(crit, post_samples, a, c_x, c_y, b_y)
 
 get_post_samples <- function(prior_point, m0, S0)
 {
+  # For a given sample from the prior, simulate some data (assuming known
+  # covariance matrix) and then sample from the conjugate posterior.
+  
   # sample data
   s_x <- 1; s_y <-1; tau <- 0.005
   n <- 150
@@ -475,64 +487,12 @@ get_post_samples <- function(prior_point, m0, S0)
                   sigma = solve(solve(S0) + solve(Sig)))
   post
 }
-
-m0 <- c(0.3, 0.3)
-S0 <- matrix(c(0.3^2, 0.02, 0.02, 0.3^2), ncol = 2)
-
-s <- rmvnorm(10^5, mean = m0, sigma = S0)
-s <- as.data.frame(s)
-
-a = 1; c_x = 0.6; c_y = 0.6; b_y = 0
-b_null <- 0; b_alt <- 0.3
-
-nulls <- est_post_prob(crit = b_null, post_samples = s, a, c_x, c_y, b_y)[[2]]
-nulls <- !nulls$go
-
-alts <- est_post_prob(crit = b_alt, post_samples = s, a, c_x, c_y, b_y)[[2]]
-alts <- alts$go
-
-s$h <- ifelse(nulls, "null",
-              ifelse(alts, "alt", "mid"))
-
-crits <- seq(0.05, 0.25, 0.05)
-
-ptm <- proc.time()
-gos <- matrix(rep(0, length(crits)*2), ncol = 2)
-for(i in 1:100){#nrow(s_null)){
-  prior_point <- s_null[i,]
-  post <- get_post_samples(prior_point, m0, S0)
-  go_b <- go_f <- NULL
-  for(j in 1:length(crits)){
-    p_b <- est_post_prob(crits[j], as.data.frame(post), a=a, c_x, c_y, b_y)[[1]]
-    p_f <- est_post_prob(crits[j], as.data.frame(post), a=10^5, c_x, c_y, b_y)[[1]]
-    gos[j,] <- gos[j,] + c(p_b > 0.5, p_f > 0.5)
-  }
-}
-gos <- gos/1000
-
-gos_a <- matrix(rep(0, length(crits)*2), ncol = 2)
-for(i in 1:1000){#nrow(s_alt)){
-  prior_point <- s_alt[i,]
-  post <- get_post_samples(prior_point, m0, S0)
-  go_b <- go_f <- NULL
-  for(j in 1:length(crits)){
-    p_b <- est_post_prob(crits[j], as.data.frame(post), a=a, c_x, c_y, b_y)[[1]]
-    p_f <- est_post_prob(crits[j], as.data.frame(post), a=10^5, c_x, c_y, b_y)[[1]]
-    gos_a[j,] <- gos_a[j,] + c(p_b > 0.5, p_f > 0.5)
-  }
-}
-gos_a <- gos_a/1000
-proc.time() - ptm
-
-df <- data.frame(tI = c(gos[,1], gos[,2]),
-                 tII = c(gos_a[,1], gos_a[,2]),
-                 t = rep(c("b", "f"), each = length(crits)))
-
-ggplot(df, aes(tI, tII, colour = t)) + geom_point()
 ```
 
 
 ```{r}
+set.seed(3218476)
+
 # Prior mean and covariance matrix
 m0 <- c(0.3, 0.3)
 S0 <- matrix(c(0.3^2, 0.02, 0.02, 0.3^2), ncol = 2)
@@ -546,7 +506,7 @@ a = 3; c_x = 0.6; c_y = 0.6; b_y = 0
 b_null <- 0; b_alt <- 0.3
 
 # Get the points in our sample in the null space - we can do this by applying
-# our decision rule becuase the rule takes the same form as the hypothesis
+# our decision rule because the rule takes the same form as the hypothesis
 # boundary
 nulls <- est_post_prob(crit = b_null, post_samples = s, a, c_x, c_y, b_y)[[2]]
 nulls <- !nulls$go
@@ -623,3 +583,42 @@ ggplot(ss_n, aes(x = p)) + geom_histogram(fill = "grey50", colour = "black") +
   theme_minimal()
 
 ```
+
+Now we want to estimate the upper bound of this distribution. We do that using extreme value theory - the Fisher–Tippett–Gnedenko theorem tells us the asymptotic distribution of block maxima will be GEV (because we know its bounded from above) with some location, scale and shape parameters. We can estimate these parameters by generating some block maxima data - we get a big sample from the null, use our model to predict the type I rate at each point, then chunk the sample up into blocks of 500 and get the maximum in each. Then use this data to get MEU estimates of the parameters (explore doing this via MCMC later) via the `evd` package:
+
+```{r}
+#set.seed(239857632)
+library(evd)
+
+# Sample from the prior
+s <- rmvnorm(10^6, mean = m0, sigma = S0)
+s <- as.data.frame(s)
+
+# Get the points in our sample in the null space - we can do this by applying
+# our decision rule because the rule takes the same form as the hypothesis
+# boundary
+nulls <- est_post_prob(crit = b_null, post_samples = s, a, c_x, c_y, b_y)[[2]]
+nulls <- nulls[!nulls$go,]
+
+names(nulls)[1:2] <- c("x", "y")
+nulls$lp <- predict(fit, newdata = nulls)
+nulls$p <- 1/(1+exp(-nulls$lp))
+
+nrow(nulls)
+nulls <- nulls[1:425000,]
+maxes <- NULL
+for(i in 1:850){
+  ind <- (i-1)*500 + 1
+  sub <- nulls[ind:(ind+499),]
+  maxes <- c(maxes, max(sub$p))
+}
+
+gev_fit <- fgev(maxes)
+gev_fit
+
+# Then our estimate upper limit is location - scale/shape, i.e.
+
+gev_pars <- gev_fit$estimate
+gev_pars[1] - gev_pars[2]/gev_pars[3]
+```
+A Bayesian approach would be nice as it would give a posterior distribution of the upper limit, and we could take an upper quantile estimate from that as our point estimate to be super conservative.
