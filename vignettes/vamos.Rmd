@@ -605,11 +605,12 @@ nulls$lp <- predict(fit, newdata = nulls)
 nulls$p <- 1/(1+exp(-nulls$lp))
 
 nrow(nulls)
-nulls <- nulls[1:425000,]
+nulls <- nulls[1:420000,]
 maxes <- NULL
-for(i in 1:850){
-  ind <- (i-1)*500 + 1
-  sub <- nulls[ind:(ind+499),]
+b <- 5000
+for(i in 1:(425000/b)){
+  ind <- (i-1)*b + 1
+  sub <- nulls[ind:(ind+b-1),]
   maxes <- c(maxes, max(sub$p))
 }
 
@@ -622,3 +623,8 @@ gev_pars <- gev_fit$estimate
 gev_pars[1] - gev_pars[2]/gev_pars[3]
 ```
 A Bayesian approach would be nice as it would give a posterior distribution of the upper limit, and we could take an upper quantile estimate from that as our point estimate to be super conservative.
+
+```{r}
+library(fitdistcp)
+qgev_cp(maxes[!is.na(maxes)], p=c(0.001, 0.9999))
+```
