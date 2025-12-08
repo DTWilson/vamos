@@ -231,14 +231,14 @@ ggplot(ss_n, aes(x = p)) + geom_histogram(fill = "grey50", colour = "black") +
 
 ```
 
-Now we want to estimate the upper bound of this distribution. We do that using extreme value theory - the Fisher–Tippett–Gnedenko theorem tells us the asymptotic distribution of block maxima will be GEV (because we know its bounded from above) with some location, scale and shape parameters. We can estimate these parameters by generating some block maxima data - we get a big sample from the null, use our model to predict the type I rate at each point, then chunk the sample up into blocks and get the maximum in each. Then use this data to get MEU estimates of the parameters (explore doing this via MCMC later) via the `evd` package:
+Now we want to estimate the upper bound of this distribution. We do that using extreme value theory - the Fisher–Tippett–Gnedenko theorem tells us the asymptotic distribution of block maxima will be GEV type III (because we know its bounded from above) with some location, scale and shape parameters. We can estimate these parameters by generating some block maxima data - we get a big sample from the null, use our model to predict the type I rate at each point, then chunk the sample up into blocks and get the maximum in each. Then use this data to get MEU estimates of the parameters (explore doing this via MCMC later) via the `evd` package:
 
 ```{r}
 #set.seed(239857632)
 library(evd)
 
 # Sample from the prior
-s <- rmvnorm(10^6, mean = m0, sigma = S0)
+s <- rmvnorm(10^7, mean = m0, sigma = S0)
 s <- as.data.frame(s)
 
 # Get the points in our sample in the null space - we can do this by applying
@@ -251,29 +251,31 @@ names(nulls)[1:2] <- c("x", "y")
 nulls$lp <- predict(fit, newdata = nulls)
 nulls$p <- 1/(1+exp(-nulls$lp))
 
-nrow(nulls)
-nulls <- nulls[1:420000,]
+size <- nrow(nulls)
+b <- 10000
+blocks <- size %/% b
+nulls2 <- nulls[1:(b*blocks),]
 maxes <- NULL
-b <- 1000
-for(i in 1:(425000/b)){
+for(i in 1:blocks){
   ind <- (i-1)*b + 1
-  sub <- nulls[ind:(ind+b-1),]
+  sub <- nulls2[ind:(ind+b-1),]
   maxes <- c(maxes, max(sub$p))
 }
 
-gev_fit <- fgev(maxes)
-gev_fit
+#gev_fit <- fgev(maxes)
+#gev_fit
 
 # Then our estimate upper limit is location - scale/shape, i.e.
 
-gev_pars <- gev_fit$estimate
-gev_pars[1] - gev_pars[2]/gev_pars[3]
+#gev_pars <- gev_fit$estimate
+#gev_pars[1] - gev_pars[2]/gev_pars[3]
 ```
+
 A Bayesian approach would be nice as it would give a posterior distribution of the upper limit, and we could take an upper quantile estimate from that as our point estimate to be super conservative.
 
 ```{r}
 library(fitdistcp)
-qgev_cp(maxes[!is.na(maxes)], p=c(0.001, 0.9999))
+qgev_cp(maxes[!is.na(maxes)], p=c(0.001, 0.5, 0.9999))
 ```
 
-Both approaches here are telling us about the distribution of the sample maxima when the sample is of size $b$. The Bayesian approach in particular is giving the predictive density of a future maximum. So with $b = 1000$ we are asking - if we had 1000 trials, what is the largest type I error rate we would see? Taking a very conservative upper quantile as an estimate of that maximum, 
+Both approaches here are telling us about the distribution of the sample maxima when the sample is of size $b$. The Bayesian approach in particular is giving the predictive density of a future maximum. So with $b = 10,000$ we are asking - if we had 10,000 trials, what is the largest type I error rate we would see? This is what we are getting the predictive distribution of using the Bayesian approach, so we can take an upper quantile of that predictive distribution to give a conservative estimate. 
