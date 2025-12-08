@@ -1,8 +1,15 @@
 
-ocs_value_cp_wrong <- function(n, null, alternative, cor_z, alpha_nom, variance, a, c_x, c_y, n_y) {
+ocs_value_cp_wrong <- function(n, null, alternative, sigma, alpha_nom, a, c_x, n_y) {
 
   # Optimal OCs for value-based hypotheses of the co-primary nature, but when
-  # using co-primary style critical region.
+  # using co-primary style critical region. This uses the same basic approach
+  # as the value based case, but now it's generally simpler to estimate error
+  # rates - we can use pmvnorm to do the integrations, rather than integrate()
+
+  # Get correlation of z statistics
+  cor_z <- sigma[1,2]/(sqrt(sigma[1,1]*sigma[2,2]))
+  variance <- sigma[1,1]
+  c_y <- c_x
 
   b_null <- null/sqrt(2*variance/n)
   b_alt <- alternative/sqrt(2*variance/n)
@@ -35,6 +42,8 @@ ocs_value_cp_wrong <- function(n, null, alternative, cor_z, alpha_nom, variance,
 }
 
 value_cp_wrong_obj <- function(crit, cor_z, alpha_nom, a, c_x, c_y, n_y, b_null) {
+  # Objective junction to use when searching for a critical value that will give
+  # us the nominal type I error rate.
 
   # Search over the null hypothesis boundary to find the maximum type I error
   # rate.
@@ -59,22 +68,4 @@ value_cp_wrong_obj <- function(crit, cor_z, alpha_nom, a, c_x, c_y, n_y, b_null)
   return((max(tI)  - alpha_nom)^2)
 }
 
-value_cp_obj <- function(crit, cor_z, alpha_nom, a, c_x, c_y, n_y, b_null) {
 
-  # Search over the null hypothesis boundary to find the maximum type I error
-  # rate.
-  df <- search_points(a, c_x, c_y, n_y, b_null)
-
-  # Run a a simple exhaustive search
-  tI <- NULL
-  for(i in 1:nrow(df)){
-
-    tI <- c(tI, integrate(f = int_cond_z_1_cp, lower = crit, upper = Inf,
-                          mean = as.numeric(df[i,]),
-                          cor_z=cor_z, a=a, c_x=c_x, c_y=c_y, n_y=n_y, crit=crit)$value)
-  }
-  which.max(tI)
-
-  # Return the penalised objective to be minimised
-  return((max(tI)  - alpha_nom)^2)
-}

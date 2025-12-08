@@ -289,6 +289,14 @@ To double check things are working, we can plot some diagnostics - for both the 
 check_errors(v)
 ```
 
+We want to compare this against the alternative of a typical co-primary endpoint test. We can do that by taking the optimal sample size found here and then finding the max type II error rate whilst controlling the type I rate at the same level.
+
+```{r}
+ocs_value_cp_wrong(n=v$n, null=0, alternative=0.3, sigma = matrix(c(1, 0, 0, 1), nrow = 2), alpha_nom=0.05, a=1, c_x=5, n_y=0) 
+```
+We see an increase in the type II rate of more than 50%.
+
+This analysis is helpful in the sense that it shows how using box-type critical regions will be inefficient if the hypotheses have a different shape characterised by a smooth trade-off. But operationally it is not a lot of use since calculating the critical value for the test requires a known covariance matrix for our outcome. 
 
 ## A Bayesian analysis
 
