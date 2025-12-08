@@ -268,7 +268,27 @@ We can create similar hypotheses for the case of multiple primary outcomes. For 
 hyp_plot(a = -3, c_x = -5, c_y = -5, b_y = -1, b_null = -2, b_alt = 0)
 ```
 
-In principle, a value-based testing procedure can proceed by using the same procedure as for creating hypothesis boundaries to create a critical region. This critical region will be determined by one parameter, which we could choose to control type I error. But type I error control would need us to know the sampling distribution, which we won't - in particular, we won't know the correlation between the endpoints.
+In principle, a value-based testing procedure can proceed by using the same procedure as for creating hypothesis boundaries to create a critical region. This critical region will be determined by one parameter, which we could choose to control type I error. But type I error control would need us to know the sampling distribution, which we won't - in particular, we won't know the correlation between the endpoints. 
+
+## A Frequentist analysis 
+
+For now, let's assume we **do** know the correlation and explore a Frequentist analysis based on a hypothesis test with controlled operating characteristics. In fact, we'll assume the full covariance matrix is known.
+
+Here, we give a null and alternative hypothesis by specifying a mean value, and `sigma` is the outcome covariance matrix. In particular, we give the hypotheses with respect to $z_1$ (the x-axis in our plots) in the area where $z_2$ doesn't come into play.
+
+```{r}
+v <- vamos(null = 0, alternative = 0.3, sigma = matrix(c(1, 0, 0, 1), nrow = 2), alpha_nom = 0.05, beta_nom = 0.2, a = 1, c_x = 5, n_y = 0, max_n = 1000)
+
+print(v)
+plot(v)
+```
+
+To double check things are working, we can plot some diagnostics - for both the null and alternative, plot i) the boundary with the point maximising type I (type II) error; and ii) the type I (type II) error as we move along the boundary.
+
+```{r}
+check_errors(v)
+```
+
 
 ## A Bayesian analysis
 

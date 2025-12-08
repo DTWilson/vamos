@@ -15,8 +15,6 @@ search_points <- function(a, c_x, c_y, b_y, b, size = 100) {
   # Two cases, co_primary and multiple endpoints
   if(a >= 0){
 
-
-
     z_1 <- (seq(sqrt(0.001), sqrt(10), length.out = size))^2 + b
     z_2 <- c_y - s*(c_y - (w*c_y - (c_x - (c_x - z_1)/s))/(w + w*a*(c_x - (c_x - z_1)/s)))
 
