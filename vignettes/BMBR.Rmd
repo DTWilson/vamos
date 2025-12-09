@@ -238,7 +238,7 @@ Now we want to estimate the upper bound of this distribution. We do that using e
 library(evd)
 
 # Sample from the prior
-s <- rmvnorm(10^7, mean = m0, sigma = S0)
+s <- rmvnorm(10^7, mean = m0, sigma = 0.1*S0)
 s <- as.data.frame(s)
 
 # Get the points in our sample in the null space - we can do this by applying
@@ -279,3 +279,7 @@ qgev_cp(maxes[!is.na(maxes)], p=c(0.001, 0.5, 0.9999))
 ```
 
 Both approaches here are telling us about the distribution of the sample maxima when the sample is of size $b$. The Bayesian approach in particular is giving the predictive density of a future maximum. So with $b = 10,000$ we are asking - if we had 10,000 trials, what is the largest type I error rate we would see? This is what we are getting the predictive distribution of using the Bayesian approach, so we can take an upper quantile of that predictive distribution to give a conservative estimate. 
+
+A note: in e.g. Best et al 2025 and references therein, people talk about strict type I error control being impossible as a Bayesian - the only way to get it is to discount all prior information. In our case this is true in the sense that if we want to find the maximum type I error we simply maximise over the null, and the prior doesn't come into play at all. But what we are showing here is that we can get pragmatic type I control - e.g. in the above with block size $10^4$, we can conclude with confidence that 99.99% of trials will have a tI rate less than our point value (the upper 0.9999 quantile of the predictive distribution of block maxima). 
+
+What are the benefits of our approach? The principle benefit is that we don't get type I error rates that are actually of no interest because they come from a point in the parameter space which is a priori infeasible. A secondary benefit is that we avoid optimisation and use sampling instead. This might be simpler, and possibly faster, especially since we only need to build a good surrogate model in the space the prior supports as opposed to the full parameter space - so if we need to use a surrogate (certainly true if we can only simulate individual stop/go outcomes rather than probabilities of going) then this approach is better, even if it ended up getting the same answer in terms of max type I error. 
