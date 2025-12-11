@@ -78,8 +78,10 @@ rects <- data.frame(xmin = c(0, 1.87, 1.87, 2.18, 1.87, 2.59, 2.59, 2.59, 2.59, 
  
 ggplot(rects, aes(xmin=xmin, xmax=xmax, ymin=ymin, ymax=ymax, fill=g)) + geom_rect(colour = "grey50") + 
   geom_rect(data = rects[c(1,11),], colour = "black", linewidth = 1) +
-  theme_minimal() + ylab("Relative weight, b") + xlab("Interaction, a") +
+  theme_minimal() + ylab("Utility parameter b") + xlab("Utility parameter a") +
   scale_fill_discrete(name="Decision", labels=c("Stop", "Go"))
+
+ggsave("tree_plot.png", height = 3, width = 5 )
 ```
 
 ## Type I error control
@@ -194,9 +196,10 @@ for(j in 1:length(crits)){
                      h = s[1:N, 3],
                      g = r_b[,j])
   df_b <- df_b[df_b$g < Inf & df_b$g > -Inf,]
+  df_b$d <- df_b$g > 0
 
-  #fit <- gam(g ~ ti(x) + ti(y) + ti(x,y), family = binomial(), data = df_b)
-  fit <- gam(g ~ ti(x) + ti(y) + ti(x,y), gaussian(link = "identity"), data = df_b)
+  fit <- gam(d ~ ti(x) + ti(y) + ti(x,y), family = binomial(), data = df_b)
+  #fit <- gam(g ~ ti(x) + ti(y) + ti(x,y), gaussian(link = "identity"), data = df_b)
 
   #ss <- s[1:N,]
   ss <- df_b
