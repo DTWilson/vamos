@@ -144,7 +144,7 @@ set.seed(3218476)
 
 # Prior mean and covariance matrix
 m0 <- c(0.3, 0.3)
-S0 <- matrix(c(0.3^2, 0.02, 0.02, 0.3^2), ncol = 2)
+S0 <- 2*matrix(c(0.3^2, 0.02, 0.02, 0.3^2), ncol = 2)
 
 # Sample from the prior
 s <- rmvnorm(10^5, mean = m0, sigma = S0)
@@ -171,7 +171,7 @@ s$h <- ifelse(nulls, "null",
 
 crits <- c(0.1) # seq(0.01, 0.29, 0.025)
 ptm <- proc.time()
-N <- 10^4
+N <- 10^5
 r_b <- matrix(rep(0, N*length(crits)), nrow = N)
 r_f <- matrix(rep(0, N*length(crits)), nrow = N)
 for(i in 1:N){
@@ -214,6 +214,15 @@ for(j in 1:length(crits)){
   #ss_a[which.min(ss_a$p),]
   tII_b <- 1 - min(ss_a$p)
 }
+proc.time() - ptm
+
+#saveRDS(ss, "ex_ss.rds")
+```
+
+
+```{r}
+ss <- readRDS("ex_ss.rds")
+ss_n <- ss[ss$h == "null",]
 
 ss_sub <- rbind(ss_n[1:500,], ss_n[which.max(ss_n$p),])
 
@@ -241,7 +250,7 @@ Now we want to estimate the upper bound of this distribution. We do that using e
 library(evd)
 
 # Sample from the prior
-s <- rmvnorm(10^7, mean = m0, sigma = 0.1*S0)
+s <- rmvnorm(10^7, mean = m0, sigma = S0)
 s <- as.data.frame(s)
 
 # Get the points in our sample in the null space - we can do this by applying
