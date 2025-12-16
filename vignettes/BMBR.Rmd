@@ -23,7 +23,7 @@ library(mgcv)
 
 ## Supporting material for BMBR application
 
-Here we include some code to genrate figures for our BMBR application around multiple outcomes.
+Here we include some code to generate figures for our BMBR application around multiple outcomes.
 
 ## Utility elicitation
 
@@ -81,7 +81,7 @@ ggplot(rects, aes(xmin=xmin, xmax=xmax, ymin=ymin, ymax=ymax, fill=g)) + geom_re
   theme_minimal() + ylab("Utility parameter b") + xlab("Utility parameter a") +
   scale_fill_discrete(name="Decision", labels=c("Stop", "Go"))
 
-ggsave("tree_plot.png", height = 3, width = 5 )
+#ggsave("tree_plot.png", height = 3, width = 5 )
 ```
 
 ## Type I error control
