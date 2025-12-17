@@ -64,7 +64,12 @@ u_ps <- data.frame(a = runif(10^3, 0, 5),
 u_ps$E_u <- apply(u_ps, 1, exp_u, s=s)
 u_ps$g <- factor(u_ps$E_u > 0.9)
 
-ggplot(u_ps, aes(a,b,colour = g)) + geom_point()
+ggplot(u_ps, aes(a,b,colour = g)) + geom_point() + 
+  scale_colour_discrete(name="Decision", labels=c("Stop", "Go")) +
+  ylab("Utility parameter b") + xlab("Utility parameter a") +
+  theme_minimal()
+
+#ggsave("tree_points_plot.png", height = 3, width = 5 )
 
 t <- tree(g ~ a + b, data = u_ps)
 
@@ -217,11 +222,14 @@ for(j in 1:length(crits)){
 proc.time() - ptm
 
 #saveRDS(ss, "ex_ss.rds")
+#saveRDS(fit, "ex_fit.rds")
 ```
 
 
 ```{r}
 ss <- readRDS("ex_ss.rds")
+fit <- readRDS("ex_fit.rds")
+
 ss_n <- ss[ss$h == "null",]
 
 ss_sub <- rbind(ss_n[1:500,], ss_n[which.max(ss_n$p),])
@@ -232,15 +240,17 @@ cont_grid$lp <- predict(fit, newdata = cont_grid)
 cont_grid$p <- 1/(1+exp(-cont_grid$lp))
 
 ggplot(ss_sub, aes(x, y)) + geom_point(alpha = 0.3, colour = "red") +
-  geom_point(data = ss[ss$h == "alt",][1:500,], alpha = 0.3, colour = "darkgreen") +
-  geom_point(data = ss[ss$h == "mid",][1:500,], alpha = 0.3, colour = "orange") +
-  geom_point(data = ss_sub[501,], size = 2, colour = "black") + 
+  geom_point(data = ss[ss$h != "null",][1:500,], alpha = 0.3, colour = "grey30") +
+  #geom_point(data = ss_sub[501,], size = 2, colour = "black") + 
   stat_contour(data = cont_grid, aes(z = p)) +
+  ylab(expression("Model parameter" ~ theta[2])) + 
+  xlab(expression("Model parameter" ~ theta[1])) + 
   theme_minimal()
 
 ggplot(ss_n, aes(x = p)) + geom_histogram(fill = "grey50", colour = "black") +
   theme_minimal()
 
+#ggsave("pow_func.png", height = 3, width = 5 )
 ```
 
 Now we want to estimate the upper bound of this distribution. We do that using extreme value theory - the Fisher–Tippett–Gnedenko theorem tells us the asymptotic distribution of block maxima will be GEV type III (because we know its bounded from above) with some location, scale and shape parameters. We can estimate these parameters by generating some block maxima data - we get a big sample from the null, use our model to predict the type I rate at each point, then chunk the sample up into blocks and get the maximum in each. Then use this data to get MEU estimates of the parameters (explore doing this via MCMC later) via the `evd` package:
@@ -288,6 +298,28 @@ A Bayesian approach would be nice as it would give a posterior distribution of t
 ```{r}
 library(fitdistcp)
 qgev_cp(maxes[!is.na(maxes)], p=c(0.001, 0.5, 0.9999))
+```
+
+Want a figure showing the maxes histogramed and the inferred predictive distribution of the block maximum.
+
+```{r}
+y <- pgev_cp(maxes[!is.na(maxes)])
+
+df <- data.frame(m = maxes,
+                 d = y$ml_cdf)
+
+y <- rgev_cp(10^6, maxes[!is.na(maxes)])
+
+# 0.2749317
+
+ggplot(df, aes(m)) + geom_histogram(fill = "grey70", colour = "black") + 
+  geom_density(data=data.frame(m = y$cp_deviates), colour = "red", linewidth = 1) +
+  xlab("Block maximum type I error rate") + ylab("Density") +
+  geom_segment(aes(x = 0.2749317, y = 0, xend = 0.2749317, yend = 30), linetype = 2, linewidth = 1) +
+  annotate("text", x = 0.2749317, y = 33, label = "0.275") +
+  theme_minimal()
+
+#ggsave("max_hist.png", height = 3, width = 5 )
 ```
 
 Both approaches here are telling us about the distribution of the sample maxima when the sample is of size $b$. The Bayesian approach in particular is giving the predictive density of a future maximum. So with $b = 10,000$ we are asking - if we had 10,000 trials, what is the largest type I error rate we would see? This is what we are getting the predictive distribution of using the Bayesian approach, so we can take an upper quantile of that predictive distribution to give a conservative estimate. 
